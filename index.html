@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MLB Home Runs — 420 ft or More, 2026</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f2;
+      --bg-tertiary: #eeece6;
+      --text-primary: #1a1a18;
+      --text-secondary: #6b6b67;
+      --text-tertiary: #9e9d99;
+      --border-light: rgba(0,0,0,0.1);
+      --border-mid: rgba(0,0,0,0.18);
+      --green-bg: #EAF3DE;
+      --green-text: #27500A;
+      --red-bg: #FAECE7;
+      --red-text: #712B13;
+      --danger-bg: #FDF1F1;
+      --danger-text: #7a1f1f;
+      --info-bg: #E6F1FB;
+      --info-text: #0C447C;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1e1e1c;
+        --bg-secondary: #2a2a28;
+        --bg-tertiary: #323230;
+        --text-primary: #f0efe9;
+        --text-secondary: #a8a8a2;
+        --text-tertiary: #6e6e6a;
+        --border-light: rgba(255,255,255,0.1);
+        --border-mid: rgba(255,255,255,0.18);
+        --green-bg: #173404;
+        --green-text: #C0DD97;
+        --red-bg: #4A1B0C;
+        --red-text: #F0997B;
+        --danger-bg: #3a1515;
+        --danger-text: #f09595;
+        --info-bg: #042C53;
+        --info-text: #85B7EB;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 1000px; margin: 0 auto; }
+
+    .header { margin-bottom: 1.5rem; }
+    .header h1 { font-size: 26px; font-weight: 500; margin-bottom: 4px; }
+    .header p { font-size: 14px; color: var(--text-secondary); }
+
+    .api-setup {
+      background: var(--info-bg);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .api-setup p { font-size: 13px; color: var(--info-text); line-height: 1.6; }
+    .api-setup code {
+      background: rgba(0,0,0,0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .api-setup label {
+      display: block;
+      font-size: 12px;
+      color: var(--info-text);
+      font-weight: 500;
+      margin: 10px 0 5px;
+    }
+    .api-setup-row { display: flex; gap: 8px; }
+    .api-setup-row input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: monospace;
+    }
+    .api-setup-row button {
+      padding: 8px 16px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--info-text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .api-setup-row button:hover { background: var(--bg-primary); }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+    }
+    .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+    .stat-value { font-size: 22px; font-weight: 500; }
+    .stat-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .refresh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .refresh-btn:hover { background: var(--bg-secondary); }
+    .refresh-btn:active { transform: scale(0.98); }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .filter-label { font-size: 12px; color: var(--text-secondary); margin-left: auto; }
+
+    select {
+      font-size: 13px;
+      padding: 7px 10px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .source-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--green-bg);
+      color: var(--green-text);
+      margin-left: auto;
+    }
+
+    .table-wrap {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      overflow: auto;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    thead th {
+      background: var(--bg-secondary);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 500;
+      font-size: 11px;
+      color: var(--text-secondary);
+      border-bottom: 0.5px solid var(--border-light);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    thead th:hover { color: var(--text-primary); }
+    thead th.sorted { color: var(--text-primary); }
+
+    tbody tr { border-bottom: 0.5px solid var(--border-light); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg-secondary); }
+    tbody td { padding: 9px 14px; vertical-align: middle; }
+
+    .rank { font-size: 11px; color: var(--text-tertiary); }
+    .player-name { font-weight: 500; }
+    .team-badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: 0.5px solid var(--border-light);
+    }
+    .dist-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
+    .dist-badge.elite {
+      background: var(--red-bg);
+      color: var(--red-text);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .error-msg {
+      background: var(--danger-bg);
+      color: var(--danger-text);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-bottom: 1rem;
+    }
+
+    .footer {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border-light);
+      border-top-color: var(--text-primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 700px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .header h1 { font-size: 20px; }
+      table { font-size: 12px; }
+      thead th, tbody td { padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>MLB home runs — 420 ft or more, 2026</h1>
+    <p>Live data from Baseball Savant (Statcast). Distances are projected HR distance in feet.</p>
+  </div>
+
+  <div class="api-setup" id="setup-panel">
+    <p>Enter your backend URL below. This is the Render.com URL of your deployed Python server (e.g. <code>https://mlb-hr-tracker.onrender.com</code>). Once saved it will be remembered in your browser.</p>
+    <label for="backend-url">Backend URL</label>
+    <div class="api-setup-row">
+      <input type="text" id="backend-url" placeholder="https://your-app.onrender.com" />
+      <button onclick="saveBackendUrl()">Save &amp; load data</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total HRs</div>
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-sub">420+ ft in 2026</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Longest blast</div>
+      <div class="stat-value" id="stat-longest">—</div>
+      <div class="stat-sub" id="stat-longest-by">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg distance</div>
+      <div class="stat-value" id="stat-avg">—</div>
+      <div class="stat-sub">among 420+ ft HRs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg exit velo</div>
+      <div class="stat-value" id="stat-ev">—</div>
+      <div class="stat-sub">mph on 420+ ft HRs</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/>
+      </svg>
+      Refresh from Savant
+    </button>
+    <span class="filter-label">Team:</span>
+    <select id="team-filter" onchange="renderTable()">
+      <option value="">All teams</option>
+    </select>
+    <span class="filter-label">Sort:</span>
+    <select id="sort-select" onchange="renderTable()">
+      <option value="dist-desc">Distance ↓</option>
+      <option value="dist-asc">Distance ↑</option>
+      <option value="ev-desc">Exit velo ↓</option>
+      <option value="date-desc">Date (newest)</option>
+      <option value="date-asc">Date (oldest)</option>
+    </select>
+    <span class="source-badge" id="source-badge" style="display:none;">Live: Baseball Savant</span>
+  </div>
+
+  <div id="error-area"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Player</th>
+          <th>Team</th>
+          <th>Distance</th>
+          <th>Exit velo</th>
+          <th>Launch angle</th>
+          <th>Date</th>
+          <th>Opponent</th>
+        </tr>
+      </thead>
+      <tbody id="hr-tbody">
+        <tr><td colspan="8" class="empty-state">Enter your backend URL above to load live Statcast data.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span id="footer-source">Source: Baseball Savant / Statcast</span>
+    <span id="footer-updated"></span>
+  </div>
+
+</div>
+
+<script>
+  const STORAGE_KEY = 'mlb_hr_backend_url';
+  let allHRs = [];
+
+  // Restore saved backend URL
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      document.getElementById('backend-url').value = saved;
+      document.getElementById('setup-panel').style.display = 'none';
+      loadData();
+    }
+  });
+
+  function saveBackendUrl() {
+    const url = document.getElementById('backend-url').value.trim().replace(/\/$/, '');
+    if (!url) return;
+    localStorage.setItem(STORAGE_KEY, url);
+    document.getElementById('setup-panel').style.display = 'none';
+    loadData();
+  }
+
+  function getBackendUrl() {
+    return localStorage.getItem(STORAGE_KEY) || document.getElementById('backend-url').value.trim().replace(/\/$/, '');
+  }
+
+  async function loadData() {
+    const base = getBackendUrl();
+    if (!base) {
+      document.getElementById('setup-panel').style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('refresh-btn');
+    const tbody = document.getElementById('hr-tbody');
+    const errArea = document.getElementById('error-area');
+    errArea.innerHTML = '';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Loading...';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state" style="font-style:italic;">Fetching live Statcast data...</td></tr>';
+
+    try {
+      const resp = await fetch(`${base}/api/homeruns`);
+      if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+      const json = await resp.json();
+
+      if (json.error && json.homeruns.length === 0) throw new Error(json.error);
+
+      allHRs = json.homeruns || [];
+      updateStats();
+      populateTeamFilter();
+      renderTable();
+
+      document.getElementById('source-badge').style.display = 'inline-block';
+      const now = new Date();
+      const cacheNote = json.cached ? ` (cached ${json.cache_age_seconds}s ago)` : ' (fresh)';
+      document.getElementById('footer-updated').textContent =
+        `Updated ${now.toLocaleTimeString()}${cacheNote}`;
+
+      if (json.error) {
+        errArea.innerHTML = `<div class="error-msg">Showing cached data — live fetch failed: ${json.error}</div>`;
+      }
+    } catch (err) {
+      errArea.innerHTML = `<div class="error-msg">Could not connect to backend: ${err.message}. Check your backend URL in the setup panel. <a href="#" onclick="document.getElementById('setup-panel').style.display='block';return false;">Edit URL</a></div>`;
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No data loaded.</td></tr>';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/></svg> Refresh from Savant';
+  }
+
+  function updateStats() {
+    document.getElementById('stat-total').textContent = allHRs.length;
+    if (allHRs.length === 0) return;
+
+    const longest = allHRs.reduce((a, b) => b.distance > a.distance ? b : a);
+    document.getElementById('stat-longest').textContent = longest.distance + ' ft';
+    document.getElementById('stat-longest-by').textContent = longest.player;
+
+    const avgDist = Math.round(allHRs.reduce((s, h) => s + h.distance, 0) / allHRs.length);
+    document.getElementById('stat-avg').textContent = avgDist + ' ft';
+
+    const evList = allHRs.filter(h => h.exit_velocity);
+    if (evList.length) {
+      const avgEv = (evList.reduce((s, h) => s + h.exit_velocity, 0) / evList.length).toFixed(1);
+      document.getElementById('stat-ev').textContent = avgEv + ' mph';
+    }
+  }
+
+  function populateTeamFilter() {
+    const teams = [...new Set(allHRs.map(h => h.team))].sort();
+    const sel = document.getElementById('team-filter');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All teams</option>' +
+      teams.map(t => `<option value="${t}"${t === current ? ' selected' : ''}>${t}</option>`).join('');
+  }
+
+  function renderTable() {
+    const teamFilter = document.getElementById('team-filter').value;
+    const sort = document.getElementById('sort-select').value;
+
+    let rows = allHRs.filter(h => !teamFilter || h.team === teamFilter);
+
+    rows.sort((a, b) => {
+      if (sort === 'dist-desc') return b.distance - a.distance;
+      if (sort === 'dist-asc') return a.distance - b.distance;
+      if (sort === 'ev-desc') return (b.exit_velocity || 0) - (a.exit_velocity || 0);
+      if (sort === 'date-desc') return (b.date || '').localeCompare(a.date || '');
+      if (sort === 'date-asc') return (a.date || '').localeCompare(b.date || '');
+      return 0;
+    });
+
+    const tbody = document.getElementById('hr-tbody');
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No results match your filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map((h, i) => {
+      const elite = h.distance >= 450;
+      const badge = `<span class="dist-badge${elite ? ' elite' : ''}">${h.distance} ft</span>`;
+      const ev = h.exit_velocity ? h.exit_velocity.toFixed(1) + ' mph' : '—';
+      const la = h.launch_angle ? h.launch_angle.toFixed(1) + '°' : '—';
+      let dateStr = '—';
+      if (h.date) {
+        try { dateStr = new Date(h.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+        catch { dateStr = h.date; }
+      }
+      return `<tr>
+        <td class="rank">${i + 1}</td>
+        <td><span class="player-name">${h.player}</span></td>
+        <td><span class="team-badge">${h.team}</span></td>
+        <td>${badge}</td>
+        <td style="color:var(--text-secondary)">${ev}</td>
+        <td style="color:var(--text-secondary)">${la}</td>
+        <td style="color:var(--text-secondary)">${dateStr}</td>
+        <td style="color:var(--text-secondary)">${h.opponent || '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>
