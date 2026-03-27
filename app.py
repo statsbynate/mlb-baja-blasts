@@ -3,7 +3,7 @@ import csv
 import io
 import time
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
 
@@ -13,25 +13,8 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Simple in-memory cache: (data, timestamp)
 _cache = {"data": None, "ts": 0}
-CACHE_TTL = 300  # seconds (5 minutes)
-
-SAVANT_URL = (
-    "https://baseballsavant.mlb.com/statcast_search/csv"
-    "?type=batter"
-    "&hfAB=home__run%7C"
-    "&hfGT=R%7C"
-    "&hfSea=2026%7C"
-    "&player_type=batter"
-    "&min_pitches=0"
-    "&min_results=0"
-    "&group_by=name-event"
-    "&sort_col=hit_distance_sc"
-    "&sort_order=desc"
-    "&min_abs=0"
-    "&type=details"
-)
+CACHE_TTL = 300
 
 HEADERS = {
     "User-Agent": (
@@ -47,23 +30,45 @@ HEADERS = {
 MIN_DISTANCE = 420
 
 
-def fetch_savant_data():
-    """Fetch and parse the Baseball Savant CSV, filtering for 420+ ft HRs."""
-    logger.info("Fetching data from Baseball Savant...")
-    resp = requests.get(SAVANT_URL, headers=HEADERS, timeout=30)
+def build_savant_url(season="2026"):
+    return (
+        "https://baseballsavant.mlb.com/statcast_search/csv"
+        "?type=batter"
+        "&hfAB=home__run%7C"
+        "&hfGT=R%7C"
+        f"&hfSea={season}%7C"
+        "&player_type=batter"
+        "&min_pitches=0"
+        "&min_results=0"
+        "&group_by=name-event"
+        "&sort_col=hit_distance_sc"
+        "&sort_order=desc"
+        "&min_abs=0"
+        "&type=details"
+    )
+
+
+def fetch_savant_data(season="2026"):
+    url = build_savant_url(season)
+    logger.info(f"Fetching: {url}")
+    resp = requests.get(url, headers=HEADERS, timeout=30)
     resp.raise_for_status()
 
-    reader = csv.DictReader(io.StringIO(resp.text))
-    results = []
+    text = resp.text
+    logger.info(f"Response length: {len(text)} chars")
+    logger.info(f"First 200 chars: {text[:200]}")
+
+    reader = csv.DictReader(io.StringIO(text))
+    all_rows = []
+    filtered = []
 
     for row in reader:
+        all_rows.append(row)
         try:
             dist_raw = row.get("hit_distance_sc", "").strip()
             if not dist_raw:
                 continue
             dist = float(dist_raw)
-            if dist < MIN_DISTANCE:
-                continue
 
             ev_raw = row.get("launch_speed", "").strip()
             ev = round(float(ev_raw), 1) if ev_raw else None
@@ -71,7 +76,7 @@ def fetch_savant_data():
             la_raw = row.get("launch_angle", "").strip()
             la = round(float(la_raw), 1) if la_raw else None
 
-            results.append({
+            entry = {
                 "player": row.get("player_name", "Unknown").strip(),
                 "team": row.get("home_team", row.get("away_team", "—")).strip(),
                 "opponent": row.get("away_team", row.get("home_team", "—")).strip(),
@@ -81,21 +86,24 @@ def fetch_savant_data():
                 "date": row.get("game_date", "").strip(),
                 "inning": row.get("inning", "").strip(),
                 "pitch_type": row.get("pitch_type", "").strip(),
-                "pitcher": row.get("pitcher_name", row.get("player_name", "")).strip(),
-            })
+            }
+
+            if dist >= MIN_DISTANCE:
+                filtered.append(entry)
+
         except (ValueError, KeyError):
             continue
 
-    # Sort longest first
-    results.sort(key=lambda x: x["distance"], reverse=True)
-    logger.info(f"Found {len(results)} HRs of {MIN_DISTANCE}+ ft")
-    return results
+    logger.info(f"Total rows: {len(all_rows)}, 420+ ft: {len(filtered)}")
+    filtered.sort(key=lambda x: x["distance"], reverse=True)
+    return filtered, len(all_rows)
 
 
 @app.route("/api/homeruns")
 def homeruns():
     global _cache
     now = time.time()
+    season = request.args.get("season", "2026")
 
     if _cache["data"] is not None and (now - _cache["ts"]) < CACHE_TTL:
         logger.info("Serving cached data")
@@ -107,17 +115,17 @@ def homeruns():
         })
 
     try:
-        data = fetch_savant_data()
+        data, total_rows = fetch_savant_data(season)
         _cache = {"data": data, "ts": now}
         return jsonify({
             "homeruns": data,
             "count": len(data),
+            "total_hrs_from_savant": total_rows,
             "cached": False,
             "cache_age_seconds": 0,
         })
     except Exception as e:
-        logger.error(f"Error fetching data: {e}")
-        # Return stale cache if available
+        logger.error(f"Error: {e}")
         if _cache["data"] is not None:
             return jsonify({
                 "homeruns": _cache["data"],
@@ -127,6 +135,26 @@ def homeruns():
                 "cache_age_seconds": int(now - _cache["ts"]),
             })
         return jsonify({"error": str(e), "homeruns": [], "count": 0}), 500
+
+
+@app.route("/api/debug")
+def debug():
+    """Shows what Baseball Savant is actually returning — useful for troubleshooting."""
+    try:
+        url = build_savant_url("2026")
+        resp = requests.get(url, headers=HEADERS, timeout=30)
+        text = resp.text
+        lines = text.strip().split("\n")
+        return jsonify({
+            "status_code": resp.status_code,
+            "response_length": len(text),
+            "line_count": len(lines),
+            "first_line": lines[0] if lines else "",
+            "second_line": lines[1] if len(lines) > 1 else "",
+            "url_fetched": url,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/health")
