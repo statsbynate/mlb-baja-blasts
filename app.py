@@ -3,7 +3,7 @@ import csv
 import io
 import time
 import logging
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 import requests
 
@@ -30,11 +30,19 @@ HEADERS = {
 }
 
 
+def safe_get(d, *keys, default=""):
+    """Safely traverse nested dicts without KeyError."""
+    for key in keys:
+        if not isinstance(d, dict):
+            return default
+        d = d.get(key, default)
+    return d if d != "" else default
+
+
 def fetch_mlb_homeruns(season=SEASON):
     schedule_url = (
         f"https://statsapi.mlb.com/api/v1/schedule"
         f"?sportId=1&season={season}&gameType=R"
-        f"&fields=dates,games,gamePk,gameDate,teams,home,away,team,name,abbreviation,status,abstractGameState"
     )
     logger.info(f"Fetching schedule: {schedule_url}")
     sched_resp = requests.get(schedule_url, headers=HEADERS, timeout=30)
@@ -45,14 +53,26 @@ def fetch_mlb_homeruns(season=SEASON):
     for date_entry in sched_data.get("dates", []):
         game_date = date_entry.get("date", "")
         for game in date_entry.get("games", []):
-            state = game.get("status", {}).get("abstractGameState", "")
+            state = safe_get(game, "status", "abstractGameState")
             if state != "Final":
                 continue
+
+            home_team = (
+                safe_get(game, "teams", "home", "team", "abbreviation")
+                or safe_get(game, "teams", "home", "team", "name")
+                or "HOME"
+            )
+            away_team = (
+                safe_get(game, "teams", "away", "team", "abbreviation")
+                or safe_get(game, "teams", "away", "team", "name")
+                or "AWAY"
+            )
+
             game_pks.append({
                 "gamePk": game["gamePk"],
                 "gameDate": game_date,
-                "home": game["teams"]["home"]["team"]["abbreviation"],
-                "away": game["teams"]["away"]["team"]["abbreviation"],
+                "home": home_team,
+                "away": away_team,
             })
 
     logger.info(f"Found {len(game_pks)} final games in {season}")
@@ -62,9 +82,7 @@ def fetch_mlb_homeruns(season=SEASON):
     all_hrs = []
     for game in game_pks:
         try:
-            feed_url = (
-                f"https://statsapi.mlb.com/api/v1.1/game/{game['gamePk']}/feed/live"
-            )
+            feed_url = f"https://statsapi.mlb.com/api/v1.1/game/{game['gamePk']}/feed/live"
             resp = requests.get(feed_url, headers=HEADERS, timeout=20)
             if resp.status_code != 200:
                 continue
@@ -72,8 +90,8 @@ def fetch_mlb_homeruns(season=SEASON):
 
             plays = feed.get("liveData", {}).get("plays", {}).get("allPlays", [])
             for play in plays:
-                result = play.get("result", {})
-                if result.get("event", "").lower() != "home run":
+                event = safe_get(play, "result", "event")
+                if event.lower() != "home run":
                     continue
 
                 hit_data = play.get("hitData", {})
@@ -81,12 +99,9 @@ def fetch_mlb_homeruns(season=SEASON):
                 launch_speed = hit_data.get("launchSpeed")
                 launch_angle = hit_data.get("launchAngle")
 
-                matchup = play.get("matchup", {})
-                batter_name = matchup.get("batter", {}).get("fullName", "Unknown")
-
-                about = play.get("about", {})
-                inning = about.get("inning", "")
-                half = about.get("halfInning", "")
+                batter_name = safe_get(play, "matchup", "batter", "fullName") or "Unknown"
+                inning = safe_get(play, "about", "inning")
+                half = safe_get(play, "about", "halfInning")
 
                 if half == "top":
                     team = game["away"]
@@ -99,9 +114,9 @@ def fetch_mlb_homeruns(season=SEASON):
                     "player": batter_name,
                     "team": team,
                     "opponent": opponent,
-                    "distance": int(distance) if distance else None,
-                    "exit_velocity": round(float(launch_speed), 1) if launch_speed else None,
-                    "launch_angle": round(float(launch_angle), 1) if launch_angle else None,
+                    "distance": int(distance) if distance is not None else None,
+                    "exit_velocity": round(float(launch_speed), 1) if launch_speed is not None else None,
+                    "launch_angle": round(float(launch_angle), 1) if launch_angle is not None else None,
                     "date": game.get("gameDate", ""),
                     "inning": str(inning),
                     "game_pk": str(game["gamePk"]),
@@ -178,14 +193,14 @@ def fetch_all_homeruns(season=SEASON):
             hr["source"] = "Baseball Savant"
 
         dist = hr.get("distance")
-        if dist and dist >= MIN_DISTANCE:
+        if dist is not None and dist >= MIN_DISTANCE:
             results.append(hr)
-        elif not dist:
+        elif dist is None:
             hr["source"] = "MLB Stats API (distance pending)"
             results.append(hr)
 
-    known = [h for h in results if h.get("distance") and h["distance"] >= MIN_DISTANCE]
-    unknown = [h for h in results if not h.get("distance")]
+    known = [h for h in results if h.get("distance") is not None and h["distance"] >= MIN_DISTANCE]
+    unknown = [h for h in results if h.get("distance") is None]
     known.sort(key=lambda x: x["distance"], reverse=True)
 
     return known + unknown
@@ -231,19 +246,29 @@ def debug():
     result = {}
 
     try:
-        url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={SEASON}&gameType=R&fields=dates,games,gamePk,gameDate,status,abstractGameState,teams,home,away,team,abbreviation"
+        url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={SEASON}&gameType=R"
         resp = requests.get(url, headers=HEADERS, timeout=15)
         data = resp.json()
         total_games = sum(len(d.get("games", [])) for d in data.get("dates", []))
         final_games = sum(
             1 for d in data.get("dates", [])
             for g in d.get("games", [])
-            if g.get("status", {}).get("abstractGameState") == "Final"
+            if safe_get(g, "status", "abstractGameState") == "Final"
         )
+        first_game = None
+        for d in data.get("dates", []):
+            for g in d.get("games", []):
+                if safe_get(g, "status", "abstractGameState") == "Final":
+                    first_game = g
+                    break
+            if first_game:
+                break
+
         result["mlb_api"] = {
             "status": resp.status_code,
             "total_games_in_schedule": total_games,
             "final_games": final_games,
+            "sample_home_team": safe_get(first_game, "teams", "home", "team") if first_game else None,
         }
     except Exception as e:
         result["mlb_api"] = {"error": str(e)}
