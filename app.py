@@ -13,8 +13,13 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-_cache = {"data": None, "ts": 0}
-CACHE_TTL = 300
+# Cache slots
+_cache_mlb = {"data": None, "ts": 0}
+_cache_savant = {"data": None, "ts": 0}
+CACHE_TTL = 300  # 5 minutes
+
+SEASON = "2026"
+MIN_DISTANCE = 420
 
 HEADERS = {
     "User-Agent": (
@@ -22,139 +27,243 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/123.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": "application/json",
     "Accept-Language": "en-US,en;q=0.5",
-    "Referer": "https://baseballsavant.mlb.com/",
 }
 
-MIN_DISTANCE = 420
+
+def fetch_mlb_homeruns(season=SEASON):
+    schedule_url = (
+        f"https://statsapi.mlb.com/api/v1/schedule"
+        f"?sportId=1&season={season}&gameType=R"
+        f"&fields=dates,games,gamePk,gameDate,teams,home,away,team,name,abbreviation"
+    )
+    logger.info(f"Fetching schedule: {schedule_url}")
+    sched_resp = requests.get(schedule_url, headers=HEADERS, timeout=30)
+    sched_resp.raise_for_status()
+    sched_data = sched_resp.json()
+
+    game_pks = []
+    for date_entry in sched_data.get("dates", []):
+        for game in date_entry.get("games", []):
+            game_pks.append({
+                "gamePk": game["gamePk"],
+                "gameDate": date_entry["date"],
+                "home": game["teams"]["home"]["team"]["abbreviation"],
+                "away": game["teams"]["away"]["team"]["abbreviation"],
+            })
+
+    logger.info(f"Found {len(game_pks)} games in {season}")
+    if not game_pks:
+        return []
+
+    all_hrs = []
+    for game in game_pks:
+        try:
+            feed_url = (
+                f"https://statsapi.mlb.com/api/v1.1/game/{game['gamePk']}/feed/live"
+                f"?fields=liveData,plays,allPlays,result,event,description,"
+                f"matchup,batter,fullName,batSide,pitchData,hitData,launchSpeed,"
+                f"launchAngle,totalDistance,about,inning,halfInning,atBatIndex"
+            )
+            resp = requests.get(feed_url, headers=HEADERS, timeout=20)
+            if resp.status_code != 200:
+                continue
+            feed = resp.json()
+
+            plays = feed.get("liveData", {}).get("plays", {}).get("allPlays", [])
+            for play in plays:
+                result = play.get("result", {})
+                if result.get("event", "").lower() != "home run":
+                    continue
+
+                hit_data = play.get("hitData", {})
+                distance = hit_data.get("totalDistance")
+                launch_speed = hit_data.get("launchSpeed")
+                launch_angle = hit_data.get("launchAngle")
+
+                matchup = play.get("matchup", {})
+                batter_name = matchup.get("batter", {}).get("fullName", "Unknown")
+
+                about = play.get("about", {})
+                inning = about.get("inning", "")
+                half = about.get("halfInning", "")
+
+                if half == "top":
+                    team = game["away"]
+                    opponent = game["home"]
+                else:
+                    team = game["home"]
+                    opponent = game["away"]
+
+                all_hrs.append({
+                    "player": batter_name,
+                    "team": team,
+                    "opponent": opponent,
+                    "distance": int(distance) if distance else None,
+                    "exit_velocity": round(float(launch_speed), 1) if launch_speed else None,
+                    "launch_angle": round(float(launch_angle), 1) if launch_angle else None,
+                    "date": game["gameDate"],
+                    "inning": str(inning),
+                    "game_pk": game["gamePk"],
+                    "source": "MLB Stats API",
+                })
+
+        except Exception as e:
+            logger.warning(f"Error fetching game {game['gamePk']}: {e}")
+            continue
+
+    logger.info(f"Total HRs from MLB API: {len(all_hrs)}")
+    return all_hrs
 
 
-def build_savant_url(season="2026"):
-    return (
+def fetch_savant_distances(season=SEASON):
+    url = (
         "https://baseballsavant.mlb.com/statcast_search/csv"
         "?type=batter"
         "&hfAB=home__run%7C"
         "&hfGT=R%7C"
         f"&hfSea={season}%7C"
         "&player_type=batter"
-        "&min_pitches=0"
-        "&min_results=0"
+        "&min_pitches=0&min_results=0"
         "&group_by=name-event"
         "&sort_col=hit_distance_sc"
         "&sort_order=desc"
-        "&min_abs=0"
-        "&type=details"
+        "&min_abs=0&type=details"
     )
-
-
-def fetch_savant_data(season="2026"):
-    url = build_savant_url(season)
-    logger.info(f"Fetching: {url}")
-    resp = requests.get(url, headers=HEADERS, timeout=30)
+    savant_headers = {**HEADERS, "Referer": "https://baseballsavant.mlb.com/"}
+    resp = requests.get(url, headers=savant_headers, timeout=30)
     resp.raise_for_status()
 
-    text = resp.text
-    logger.info(f"Response length: {len(text)} chars")
-    logger.info(f"First 200 chars: {text[:200]}")
-
-    reader = csv.DictReader(io.StringIO(text))
-    all_rows = []
-    filtered = []
-
+    reader = csv.DictReader(io.StringIO(resp.text))
+    lookup = {}
     for row in reader:
-        all_rows.append(row)
         try:
             dist_raw = row.get("hit_distance_sc", "").strip()
             if not dist_raw:
                 continue
-            dist = float(dist_raw)
-
+            dist = int(float(dist_raw))
+            name = row.get("player_name", "").strip()
+            date = row.get("game_date", "").strip()
             ev_raw = row.get("launch_speed", "").strip()
             ev = round(float(ev_raw), 1) if ev_raw else None
-
             la_raw = row.get("launch_angle", "").strip()
             la = round(float(la_raw), 1) if la_raw else None
-
-            entry = {
-                "player": row.get("player_name", "Unknown").strip(),
-                "team": row.get("home_team", row.get("away_team", "—")).strip(),
-                "opponent": row.get("away_team", row.get("home_team", "—")).strip(),
-                "distance": int(dist),
-                "exit_velocity": ev,
-                "launch_angle": la,
-                "date": row.get("game_date", "").strip(),
-                "inning": row.get("inning", "").strip(),
-                "pitch_type": row.get("pitch_type", "").strip(),
-            }
-
-            if dist >= MIN_DISTANCE:
-                filtered.append(entry)
-
+            key = (name, date)
+            if key not in lookup:
+                lookup[key] = {"distance": dist, "exit_velocity": ev, "launch_angle": la}
         except (ValueError, KeyError):
             continue
 
-    logger.info(f"Total rows: {len(all_rows)}, 420+ ft: {len(filtered)}")
-    filtered.sort(key=lambda x: x["distance"], reverse=True)
-    return filtered, len(all_rows)
+    logger.info(f"Savant lookup entries: {len(lookup)}")
+    return lookup
+
+
+def fetch_all_homeruns(season=SEASON):
+    mlb_hrs = fetch_mlb_homeruns(season)
+
+    savant_lookup = {}
+    try:
+        savant_lookup = fetch_savant_distances(season)
+    except Exception as e:
+        logger.warning(f"Savant enrichment failed (non-fatal): {e}")
+
+    results = []
+    for hr in mlb_hrs:
+        key = (hr["player"], hr["date"])
+        savant = savant_lookup.get(key)
+        if savant:
+            hr["distance"] = savant["distance"]
+            hr["exit_velocity"] = savant["exit_velocity"] or hr["exit_velocity"]
+            hr["launch_angle"] = savant["launch_angle"] or hr["launch_angle"]
+            hr["source"] = "Baseball Savant"
+
+        dist = hr.get("distance")
+        if dist and dist >= MIN_DISTANCE:
+            results.append(hr)
+        elif not dist:
+            hr["distance"] = None
+            hr["source"] = "MLB Stats API (no distance yet)"
+            results.append(hr)
+
+    known = [h for h in results if h["distance"] and h["distance"] >= MIN_DISTANCE]
+    unknown = [h for h in results if not h["distance"]]
+    known.sort(key=lambda x: x["distance"], reverse=True)
+
+    return known + unknown
 
 
 @app.route("/api/homeruns")
 def homeruns():
-    global _cache
+    global _cache_mlb
     now = time.time()
-    season = request.args.get("season", "2026")
 
-    if _cache["data"] is not None and (now - _cache["ts"]) < CACHE_TTL:
-        logger.info("Serving cached data")
+    if _cache_mlb["data"] is not None and (now - _cache_mlb["ts"]) < CACHE_TTL:
         return jsonify({
-            "homeruns": _cache["data"],
-            "count": len(_cache["data"]),
+            "homeruns": _cache_mlb["data"],
+            "count": len(_cache_mlb["data"]),
             "cached": True,
-            "cache_age_seconds": int(now - _cache["ts"]),
+            "cache_age_seconds": int(now - _cache_mlb["ts"]),
         })
 
     try:
-        data, total_rows = fetch_savant_data(season)
-        _cache = {"data": data, "ts": now}
+        data = fetch_all_homeruns()
+        _cache_mlb = {"data": data, "ts": now}
         return jsonify({
             "homeruns": data,
             "count": len(data),
-            "total_hrs_from_savant": total_rows,
             "cached": False,
             "cache_age_seconds": 0,
         })
     except Exception as e:
         logger.error(f"Error: {e}")
-        if _cache["data"] is not None:
+        if _cache_mlb["data"] is not None:
             return jsonify({
-                "homeruns": _cache["data"],
-                "count": len(_cache["data"]),
+                "homeruns": _cache_mlb["data"],
+                "count": len(_cache_mlb["data"]),
                 "cached": True,
                 "error": str(e),
-                "cache_age_seconds": int(now - _cache["ts"]),
+                "cache_age_seconds": int(now - _cache_mlb["ts"]),
             })
         return jsonify({"error": str(e), "homeruns": [], "count": 0}), 500
 
 
 @app.route("/api/debug")
 def debug():
-    """Shows what Baseball Savant is actually returning — useful for troubleshooting."""
+    result = {}
+
     try:
-        url = build_savant_url("2026")
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        text = resp.text
-        lines = text.strip().split("\n")
-        return jsonify({
-            "status_code": resp.status_code,
-            "response_length": len(text),
-            "line_count": len(lines),
-            "first_line": lines[0] if lines else "",
-            "second_line": lines[1] if len(lines) > 1 else "",
-            "url_fetched": url,
-        })
+        url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={SEASON}&gameType=R"
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        data = resp.json()
+        game_count = sum(len(d.get("games", [])) for d in data.get("dates", []))
+        result["mlb_api"] = {
+            "status": resp.status_code,
+            "games_found": game_count,
+        }
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        result["mlb_api"] = {"error": str(e)}
+
+    try:
+        savant_url = (
+            "https://baseballsavant.mlb.com/statcast_search/csv"
+            f"?type=batter&hfAB=home__run%7C&hfGT=R%7C&hfSea={SEASON}%7C"
+            "&player_type=batter&min_pitches=0&min_results=0"
+            "&group_by=name-event&sort_col=hit_distance_sc"
+            "&sort_order=desc&min_abs=0&type=details"
+        )
+        savant_headers = {**HEADERS, "Referer": "https://baseballsavant.mlb.com/"}
+        resp = requests.get(savant_url, headers=savant_headers, timeout=15)
+        lines = resp.text.strip().split("\n")
+        result["savant"] = {
+            "status": resp.status_code,
+            "line_count": len(lines),
+            "has_data": len(lines) > 1,
+        }
+    except Exception as e:
+        result["savant"] = {"error": str(e)}
+
+    return jsonify(result)
 
 
 @app.route("/health")
