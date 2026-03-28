@@ -3,110 +3,173 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MLB Home Runs — 420 ft or More, 2026</title>
+  <title>MLB HR Tracker 2026 — 420 ft or More</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg-primary: #ffffff;
-      --bg-secondary: #f5f5f2;
-      --bg-tertiary: #eeece6;
-      --text-primary: #1a1a18;
-      --text-secondary: #6b6b67;
-      --text-tertiary: #9e9d99;
-      --border-light: rgba(0,0,0,0.1);
-      --border-mid: rgba(0,0,0,0.18);
-      --green-bg: #EAF3DE;
-      --green-text: #27500A;
-      --red-bg: #FAECE7;
-      --red-text: #712B13;
-      --danger-bg: #FDF1F1;
-      --danger-text: #7a1f1f;
-      --info-bg: #E6F1FB;
-      --info-text: #0C447C;
-      --radius-md: 8px;
+      --bg: #0a0e14;
+      --bg2: #111620;
+      --bg3: #1a2030;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.13);
+      --text: #e8eaf0;
+      --text2: #8892a4;
+      --text3: #4a5568;
+      --accent: #e8332a;
+      --accent2: #ff6b35;
+      --green: #22c55e;
+      --green-bg: rgba(34,197,94,0.1);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245,158,11,0.1);
+      --blue: #3b82f6;
+      --blue-bg: rgba(59,130,246,0.1);
+      --radius: 8px;
       --radius-lg: 12px;
     }
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg-primary: #1e1e1c;
-        --bg-secondary: #2a2a28;
-        --bg-tertiary: #323230;
-        --text-primary: #f0efe9;
-        --text-secondary: #a8a8a2;
-        --text-tertiary: #6e6e6a;
-        --border-light: rgba(255,255,255,0.1);
-        --border-mid: rgba(255,255,255,0.18);
-        --green-bg: #173404;
-        --green-text: #C0DD97;
-        --red-bg: #4A1B0C;
-        --red-text: #F0997B;
-        --danger-bg: #3a1515;
-        --danger-text: #f09595;
-        --info-bg: #042C53;
-        --info-text: #85B7EB;
-      }
-    }
-
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      padding: 2rem 1rem;
+      padding: 0;
     }
 
-    .container { max-width: 1000px; margin: 0 auto; }
+    /* Header */
+    .site-header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
 
-    .header { margin-bottom: 1.5rem; }
-    .header h1 { font-size: 26px; font-weight: 500; margin-bottom: 4px; }
-    .header p { font-size: 14px; color: var(--text-secondary); }
+    .site-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text);
+    }
 
-    .api-setup {
-      background: var(--info-bg);
-      border: 0.5px solid var(--border-light);
+    .site-title span {
+      color: var(--accent);
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--green);
+      background: var(--green-bg);
+      border: 1px solid rgba(34,197,94,0.2);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .auto-refresh-label {
+      font-size: 12px;
+      color: var(--text2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .countdown {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      color: var(--amber);
+      min-width: 32px;
+    }
+
+    .refresh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .refresh-btn:hover { background: #c2291f; }
+    .refresh-btn:active { transform: scale(0.97); }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Main layout */
+    .main { padding: 1.5rem 2rem; max-width: 1200px; margin: 0 auto; }
+
+    /* Setup panel */
+    .setup-panel {
+      background: var(--bg2);
+      border: 1px solid var(--blue);
       border-radius: var(--radius-lg);
       padding: 1.25rem;
       margin-bottom: 1.5rem;
     }
-    .api-setup p { font-size: 13px; color: var(--info-text); line-height: 1.6; }
-    .api-setup code {
-      background: rgba(0,0,0,0.08);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-family: monospace;
-    }
-    .api-setup label {
-      display: block;
-      font-size: 12px;
-      color: var(--info-text);
-      font-weight: 500;
-      margin: 10px 0 5px;
-    }
-    .api-setup-row { display: flex; gap: 8px; }
-    .api-setup-row input {
+
+    .setup-panel p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
+    .setup-panel code { background: var(--bg3); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent2); }
+    .setup-panel label { display: block; font-size: 12px; color: var(--blue); font-weight: 500; margin-bottom: 5px; }
+
+    .setup-row { display: flex; gap: 8px; }
+    .setup-row input {
       flex: 1;
       padding: 8px 12px;
-      border: 0.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
       font-size: 13px;
       font-family: monospace;
     }
-    .api-setup-row button {
+    .setup-row input:focus { outline: none; border-color: var(--blue); }
+    .setup-row button {
       padding: 8px 16px;
-      border: 0.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--info-text);
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
       font-size: 13px;
       cursor: pointer;
     }
-    .api-setup-row button:hover { background: var(--bg-primary); }
+    .setup-row button:hover { background: #2563eb; }
 
+    /* Stats grid */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -115,64 +178,138 @@
     }
 
     .stat-card {
-      background: var(--bg-primary);
-      border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-md);
-      padding: 1rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      position: relative;
+      overflow: hidden;
     }
-    .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-    .stat-value { font-size: 22px; font-weight: 500; }
-    .stat-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
 
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .stat-card.green::before { background: var(--green); }
+    .stat-card.amber::before { background: var(--amber); }
+    .stat-card.blue::before { background: var(--blue); }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .stat-sub {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+
+    /* Charts section */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+    }
+
+    .chart-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text2);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* Controls */
     .controls {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       margin-bottom: 1rem;
       flex-wrap: wrap;
     }
 
-    .refresh-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 18px;
-      border: 0.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--text-primary);
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 0.15s;
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+      max-width: 300px;
     }
-    .refresh-btn:hover { background: var(--bg-secondary); }
-    .refresh-btn:active { transform: scale(0.98); }
-    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .filter-label { font-size: 12px; color: var(--text-secondary); margin-left: auto; }
+    .search-wrap svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text3);
+      pointer-events: none;
+    }
 
-    select {
+    .search-input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
       font-size: 13px;
-      padding: 7px 10px;
-      border: 0.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      font-family: 'Barlow', sans-serif;
+    }
+
+    .search-input:focus { outline: none; border-color: var(--accent); }
+    .search-input::placeholder { color: var(--text3); }
+
+    .filter-select {
+      padding: 8px 12px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Barlow', sans-serif;
       cursor: pointer;
     }
 
-    .source-badge {
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: var(--green-bg);
-      color: var(--green-text);
+    .filter-select:focus { outline: none; border-color: var(--accent); }
+
+    .results-count {
       margin-left: auto;
+      font-size: 12px;
+      color: var(--text3);
     }
 
+    /* Table */
     .table-wrap {
-      background: var(--bg-primary);
-      border: 0.5px solid var(--border-light);
+      background: var(--bg2);
+      border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       overflow: auto;
     }
@@ -180,61 +317,109 @@
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
     thead th {
-      background: var(--bg-secondary);
       padding: 10px 14px;
       text-align: left;
-      font-weight: 500;
+      font-family: 'Barlow Condensed', sans-serif;
       font-size: 11px;
-      color: var(--text-secondary);
-      border-bottom: 0.5px solid var(--border-light);
-      white-space: nowrap;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text3);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
       cursor: pointer;
+      white-space: nowrap;
       user-select: none;
     }
-    thead th:hover { color: var(--text-primary); }
-    thead th.sorted { color: var(--text-primary); }
 
-    tbody tr { border-bottom: 0.5px solid var(--border-light); }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: var(--bg-secondary); }
-    tbody td { padding: 9px 14px; vertical-align: middle; }
+    thead th:hover { color: var(--text2); }
+    thead th.sorted { color: var(--accent); }
 
-    .rank { font-size: 11px; color: var(--text-tertiary); }
-    .player-name { font-weight: 500; }
-    .team-badge {
-      display: inline-block;
-      font-size: 11px;
-      padding: 2px 7px;
-      border-radius: var(--radius-md);
-      background: var(--bg-secondary);
-      color: var(--text-secondary);
-      border: 0.5px solid var(--border-light);
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
     }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg3); }
+    tbody td { padding: 10px 14px; vertical-align: middle; }
+
+    .rank {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      color: var(--text3);
+      width: 32px;
+    }
+
+    .player-name {
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .team-chip {
+      display: inline-block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+    }
+
     .dist-badge {
       display: inline-block;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 2px 8px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
       border-radius: 999px;
       background: var(--green-bg);
-      color: var(--green-text);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.2);
     }
+
     .dist-badge.elite {
-      background: var(--red-bg);
-      color: var(--red-text);
+      background: rgba(232,51,42,0.1);
+      color: var(--accent2);
+      border-color: rgba(232,51,42,0.2);
+    }
+
+    .dist-badge.pending {
+      background: var(--bg3);
+      color: var(--text3);
+      border-color: var(--border);
+      font-size: 11px;
+    }
+
+    .new-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--accent);
+      color: white;
+      margin-left: 6px;
+      vertical-align: middle;
     }
 
     .empty-state {
       text-align: center;
-      padding: 3rem 1rem;
-      color: var(--text-secondary);
+      padding: 4rem 1rem;
+      color: var(--text3);
       font-size: 14px;
     }
 
     .error-msg {
-      background: var(--danger-bg);
-      color: var(--danger-text);
-      border-radius: var(--radius-md);
+      background: rgba(232,51,42,0.1);
+      border: 1px solid rgba(232,51,42,0.2);
+      color: #ff6b6b;
+      border-radius: var(--radius);
       padding: 12px 16px;
       font-size: 13px;
       margin-bottom: 1rem;
@@ -242,92 +427,148 @@
 
     .footer {
       font-size: 11px;
-      color: var(--text-tertiary);
+      color: var(--text3);
       margin-top: 1rem;
       display: flex;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 4px;
+      padding-bottom: 2rem;
     }
 
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
-      border: 2px solid var(--border-light);
-      border-top-color: var(--text-primary);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: white;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
+
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 700px) {
+    /* Notification toast */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--bg2);
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 768px) {
+      .main { padding: 1rem; }
+      .site-header { padding: 1rem; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .header h1 { font-size: 20px; }
-      table { font-size: 12px; }
-      thead th, tbody td { padding: 8px 10px; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .site-title { font-size: 22px; }
     }
   </style>
 </head>
 <body>
-<div class="container">
 
-  <div class="header">
-    <h1>MLB home runs — 420 ft or more, 2026</h1>
-    <p>Live data from Baseball Savant (Statcast). Distances are projected HR distance in feet.</p>
+<header class="site-header">
+  <div>
+    <div class="site-title">MLB HR Tracker <span>2026</span></div>
   </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      Live
+    </div>
+    <div class="auto-refresh-label">
+      Auto-refresh in <span class="countdown" id="countdown">10:00</span>
+    </div>
+    <button class="refresh-btn" id="refresh-btn" onclick="loadData(true)">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</header>
 
-  <div class="api-setup" id="setup-panel">
-    <p>Enter your backend URL below. This is the Render.com URL of your deployed Python server (e.g. <code>https://mlb-hr-tracker.onrender.com</code>). Once saved it will be remembered in your browser.</p>
-    <label for="backend-url">Backend URL</label>
-    <div class="api-setup-row">
+<div class="main">
+
+  <div class="setup-panel" id="setup-panel">
+    <p>Enter your Render backend URL to connect to live MLB data. Example: <code>https://mlb-hr-tracker.onrender.com</code></p>
+    <label>Backend URL</label>
+    <div class="setup-row">
       <input type="text" id="backend-url" placeholder="https://your-app.onrender.com" />
-      <button onclick="saveBackendUrl()">Save &amp; load data</button>
+      <button onclick="saveBackendUrl()">Connect</button>
     </div>
   </div>
 
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-label">Total HRs</div>
+      <div class="stat-label">Total Home Runs</div>
       <div class="stat-value" id="stat-total">—</div>
-      <div class="stat-sub">420+ ft in 2026</div>
+      <div class="stat-sub">2026 season</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Longest blast</div>
+    <div class="stat-card green">
+      <div class="stat-label">420+ ft HRs</div>
+      <div class="stat-value" id="stat-420">—</div>
+      <div class="stat-sub">verified distance</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Longest Blast</div>
       <div class="stat-value" id="stat-longest">—</div>
-      <div class="stat-sub" id="stat-longest-by">—</div>
+      <div class="stat-sub" id="stat-longest-by">pending Statcast</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Avg distance</div>
-      <div class="stat-value" id="stat-avg">—</div>
-      <div class="stat-sub">among 420+ ft HRs</div>
+    <div class="stat-card blue">
+      <div class="stat-label">Games Tracked</div>
+      <div class="stat-value" id="stat-games">—</div>
+      <div class="stat-sub">completed games</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Avg exit velo</div>
-      <div class="stat-value" id="stat-ev">—</div>
-      <div class="stat-sub">mph on 420+ ft HRs</div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">HRs by team</div>
+      <div class="chart-wrap"><canvas id="teamChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">HRs per day</div>
+      <div class="chart-wrap"><canvas id="dateChart"></canvas></div>
     </div>
   </div>
 
   <div class="controls">
-    <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+    <div class="search-wrap">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/>
+        <circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/>
       </svg>
-      Refresh from Savant
-    </button>
-    <span class="filter-label">Team:</span>
-    <select id="team-filter" onchange="renderTable()">
+      <input class="search-input" type="text" id="search-input" placeholder="Search player..." oninput="renderTable()" />
+    </div>
+    <select class="filter-select" id="team-filter" onchange="renderTable()">
       <option value="">All teams</option>
     </select>
-    <span class="filter-label">Sort:</span>
-    <select id="sort-select" onchange="renderTable()">
-      <option value="dist-desc">Distance ↓</option>
-      <option value="dist-asc">Distance ↑</option>
-      <option value="ev-desc">Exit velo ↓</option>
-      <option value="date-desc">Date (newest)</option>
-      <option value="date-asc">Date (oldest)</option>
+    <select class="filter-select" id="date-filter" onchange="renderTable()">
+      <option value="">All dates</option>
     </select>
-    <span class="source-badge" id="source-badge" style="display:none;">Live: Baseball Savant</span>
+    <select class="filter-select" id="sort-select" onchange="renderTable()">
+      <option value="date-desc">Date (newest first)</option>
+      <option value="date-asc">Date (oldest first)</option>
+      <option value="dist-desc">Distance (longest first)</option>
+      <option value="player-asc">Player (A-Z)</option>
+      <option value="team-asc">Team (A-Z)</option>
+    </select>
+    <div class="results-count" id="results-count"></div>
   </div>
 
   <div id="error-area"></div>
@@ -343,34 +584,45 @@
           <th>Exit velo</th>
           <th>Launch angle</th>
           <th>Date</th>
-          <th>Opponent</th>
+          <th>Opp</th>
+          <th>Inn</th>
         </tr>
       </thead>
       <tbody id="hr-tbody">
-        <tr><td colspan="8" class="empty-state">Enter your backend URL above to load live Statcast data.</td></tr>
+        <tr><td colspan="9" class="empty-state">Connect your backend to load live data.</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="footer">
-    <span id="footer-source">Source: Baseball Savant / Statcast</span>
+    <span>Sources: MLB Stats API + Baseball Savant (Statcast)</span>
     <span id="footer-updated"></span>
   </div>
 
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
   const STORAGE_KEY = 'mlb_hr_backend_url';
+  const REFRESH_INTERVAL = 600; // 10 minutes in seconds
   let allHRs = [];
+  let previousCount = 0;
+  let countdownTimer = null;
+  let secondsLeft = REFRESH_INTERVAL;
+  let teamChart = null;
+  let dateChart = null;
+  let lastSeenPks = new Set();
 
-  // Restore saved backend URL
+  // ── Init ──────────────────────────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       document.getElementById('backend-url').value = saved;
       document.getElementById('setup-panel').style.display = 'none';
-      loadData();
+      loadData(false);
     }
+    startCountdown();
   });
 
   function saveBackendUrl() {
@@ -378,126 +630,273 @@
     if (!url) return;
     localStorage.setItem(STORAGE_KEY, url);
     document.getElementById('setup-panel').style.display = 'none';
-    loadData();
+    loadData(true);
   }
 
   function getBackendUrl() {
     return localStorage.getItem(STORAGE_KEY) || document.getElementById('backend-url').value.trim().replace(/\/$/, '');
   }
 
-  async function loadData() {
+  // ── Countdown & auto-refresh ──────────────────────────────────────────────
+  function startCountdown() {
+    if (countdownTimer) clearInterval(countdownTimer);
+    secondsLeft = REFRESH_INTERVAL;
+    updateCountdownDisplay();
+    countdownTimer = setInterval(() => {
+      secondsLeft--;
+      updateCountdownDisplay();
+      if (secondsLeft <= 0) {
+        secondsLeft = REFRESH_INTERVAL;
+        loadData(false);
+      }
+    }, 1000);
+  }
+
+  function updateCountdownDisplay() {
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    document.getElementById('countdown').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  }
+
+  // ── Load data ─────────────────────────────────────────────────────────────
+  async function loadData(manual = false) {
     const base = getBackendUrl();
-    if (!base) {
-      document.getElementById('setup-panel').style.display = 'block';
-      return;
-    }
+    if (!base) { document.getElementById('setup-panel').style.display = 'block'; return; }
 
     const btn = document.getElementById('refresh-btn');
-    const tbody = document.getElementById('hr-tbody');
     const errArea = document.getElementById('error-area');
     errArea.innerHTML = '';
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Loading...';
-    tbody.innerHTML = '<tr><td colspan="8" class="empty-state" style="font-style:italic;">Fetching live Statcast data...</td></tr>';
+
+    if (manual) startCountdown();
 
     try {
       const resp = await fetch(`${base}/api/homeruns`);
       if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
       const json = await resp.json();
+      if (json.error && (!json.homeruns || json.homeruns.length === 0)) throw new Error(json.error);
 
-      if (json.error && json.homeruns.length === 0) throw new Error(json.error);
+      const newHRs = json.homeruns || [];
+      const newPks = new Set(newHRs.map(h => h.game_pk + h.player + h.date));
+      const addedCount = [...newPks].filter(k => !lastSeenPks.has(k)).length;
 
-      allHRs = json.homeruns || [];
+      if (lastSeenPks.size > 0 && addedCount > 0) {
+        showToast(`${addedCount} new home run${addedCount > 1 ? 's' : ''} added!`);
+      }
+
+      lastSeenPks = newPks;
+      allHRs = newHRs;
+
       updateStats();
-      populateTeamFilter();
+      populateFilters();
       renderTable();
+      renderCharts();
 
-      document.getElementById('source-badge').style.display = 'inline-block';
       const now = new Date();
-      const cacheNote = json.cached ? ` (cached ${json.cache_age_seconds}s ago)` : ' (fresh)';
       document.getElementById('footer-updated').textContent =
-        `Updated ${now.toLocaleTimeString()}${cacheNote}`;
+        `Updated ${now.toLocaleTimeString()} — ${json.cached ? `cached ${json.cache_age_seconds}s ago` : 'fresh from API'}`;
 
       if (json.error) {
         errArea.innerHTML = `<div class="error-msg">Showing cached data — live fetch failed: ${json.error}</div>`;
       }
-    } catch (err) {
-      errArea.innerHTML = `<div class="error-msg">Could not connect to backend: ${err.message}. Check your backend URL in the setup panel. <a href="#" onclick="document.getElementById('setup-panel').style.display='block';return false;">Edit URL</a></div>`;
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No data loaded.</td></tr>';
+
+    } catch(err) {
+      errArea.innerHTML = `<div class="error-msg">Could not connect to backend: ${err.message}. <a href="#" style="color:inherit" onclick="document.getElementById('setup-panel').style.display='block';return false;">Edit URL</a></div>`;
     }
 
     btn.disabled = false;
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/></svg> Refresh from Savant';
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/></svg> Refresh';
   }
 
+  // ── Stats ─────────────────────────────────────────────────────────────────
   function updateStats() {
+    const known = allHRs.filter(h => h.distance && h.distance >= 420);
+    const games = new Set(allHRs.map(h => h.game_pk)).size;
+
     document.getElementById('stat-total').textContent = allHRs.length;
-    if (allHRs.length === 0) return;
+    document.getElementById('stat-420').textContent = known.length || '—';
+    document.getElementById('stat-games').textContent = games;
 
-    const longest = allHRs.reduce((a, b) => b.distance > a.distance ? b : a);
-    document.getElementById('stat-longest').textContent = longest.distance + ' ft';
-    document.getElementById('stat-longest-by').textContent = longest.player;
-
-    const avgDist = Math.round(allHRs.reduce((s, h) => s + h.distance, 0) / allHRs.length);
-    document.getElementById('stat-avg').textContent = avgDist + ' ft';
-
-    const evList = allHRs.filter(h => h.exit_velocity);
-    if (evList.length) {
-      const avgEv = (evList.reduce((s, h) => s + h.exit_velocity, 0) / evList.length).toFixed(1);
-      document.getElementById('stat-ev').textContent = avgEv + ' mph';
+    if (known.length > 0) {
+      const longest = known.reduce((a,b) => b.distance > a.distance ? b : a);
+      document.getElementById('stat-longest').textContent = longest.distance + ' ft';
+      document.getElementById('stat-longest-by').textContent = longest.player;
+    } else {
+      document.getElementById('stat-longest').textContent = '—';
+      document.getElementById('stat-longest-by').textContent = 'pending Statcast';
     }
   }
 
-  function populateTeamFilter() {
+  // ── Filters ───────────────────────────────────────────────────────────────
+  function populateFilters() {
     const teams = [...new Set(allHRs.map(h => h.team))].sort();
-    const sel = document.getElementById('team-filter');
-    const current = sel.value;
-    sel.innerHTML = '<option value="">All teams</option>' +
-      teams.map(t => `<option value="${t}"${t === current ? ' selected' : ''}>${t}</option>`).join('');
+    const dates = [...new Set(allHRs.map(h => h.date))].sort().reverse();
+
+    const teamSel = document.getElementById('team-filter');
+    const cur = teamSel.value;
+    teamSel.innerHTML = '<option value="">All teams</option>' +
+      teams.map(t => `<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');
+
+    const dateSel = document.getElementById('date-filter');
+    const curD = dateSel.value;
+    dateSel.innerHTML = '<option value="">All dates</option>' +
+      dates.map(d => {
+        const label = new Date(d + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'});
+        return `<option value="${d}"${d===curD?' selected':''}>${label}</option>`;
+      }).join('');
   }
 
+  // ── Table ─────────────────────────────────────────────────────────────────
   function renderTable() {
+    const search = document.getElementById('search-input').value.toLowerCase().trim();
     const teamFilter = document.getElementById('team-filter').value;
+    const dateFilter = document.getElementById('date-filter').value;
     const sort = document.getElementById('sort-select').value;
 
-    let rows = allHRs.filter(h => !teamFilter || h.team === teamFilter);
+    let rows = allHRs.filter(h => {
+      if (search && !h.player.toLowerCase().includes(search) && !h.team.toLowerCase().includes(search)) return false;
+      if (teamFilter && h.team !== teamFilter) return false;
+      if (dateFilter && h.date !== dateFilter) return false;
+      return true;
+    });
 
-    rows.sort((a, b) => {
-      if (sort === 'dist-desc') return b.distance - a.distance;
-      if (sort === 'dist-asc') return a.distance - b.distance;
-      if (sort === 'ev-desc') return (b.exit_velocity || 0) - (a.exit_velocity || 0);
-      if (sort === 'date-desc') return (b.date || '').localeCompare(a.date || '');
-      if (sort === 'date-asc') return (a.date || '').localeCompare(b.date || '');
+    rows.sort((a,b) => {
+      if (sort === 'dist-desc') return (b.distance||0) - (a.distance||0);
+      if (sort === 'date-desc') return (b.date||'').localeCompare(a.date||'');
+      if (sort === 'date-asc') return (a.date||'').localeCompare(b.date||'');
+      if (sort === 'player-asc') return a.player.localeCompare(b.player);
+      if (sort === 'team-asc') return a.team.localeCompare(b.team);
       return 0;
     });
 
+    document.getElementById('results-count').textContent =
+      rows.length === allHRs.length ? `${rows.length} home runs` : `${rows.length} of ${allHRs.length}`;
+
     const tbody = document.getElementById('hr-tbody');
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No results match your filter.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No results match your filters.</td></tr>';
       return;
     }
 
+    // Track which are "new" (added since last manual refresh)
+    const isNew = (h) => {
+      const key = h.game_pk + h.player + h.date;
+      return false; // placeholder — would need previous snapshot
+    };
+
     tbody.innerHTML = rows.map((h, i) => {
-      const elite = h.distance >= 450;
-      const badge = `<span class="dist-badge${elite ? ' elite' : ''}">${h.distance} ft</span>`;
+      const dist = h.distance;
+      let distCell;
+      if (dist && dist >= 420) {
+        const cls = dist >= 450 ? 'elite' : '';
+        distCell = `<span class="dist-badge ${cls}">${dist} ft</span>`;
+      } else if (dist) {
+        distCell = `<span style="color:var(--text3);font-size:12px;">${dist} ft</span>`;
+      } else {
+        distCell = `<span class="dist-badge pending">pending</span>`;
+      }
+
       const ev = h.exit_velocity ? h.exit_velocity.toFixed(1) + ' mph' : '—';
       const la = h.launch_angle ? h.launch_angle.toFixed(1) + '°' : '—';
       let dateStr = '—';
       if (h.date) {
-        try { dateStr = new Date(h.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+        try { dateStr = new Date(h.date + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); }
         catch { dateStr = h.date; }
       }
+
       return `<tr>
-        <td class="rank">${i + 1}</td>
+        <td class="rank">${i+1}</td>
         <td><span class="player-name">${h.player}</span></td>
-        <td><span class="team-badge">${h.team}</span></td>
-        <td>${badge}</td>
-        <td style="color:var(--text-secondary)">${ev}</td>
-        <td style="color:var(--text-secondary)">${la}</td>
-        <td style="color:var(--text-secondary)">${dateStr}</td>
-        <td style="color:var(--text-secondary)">${h.opponent || '—'}</td>
+        <td><span class="team-chip">${h.team}</span></td>
+        <td>${distCell}</td>
+        <td style="color:var(--text2);font-size:13px;">${ev}</td>
+        <td style="color:var(--text2);font-size:13px;">${la}</td>
+        <td style="color:var(--text2);font-size:13px;">${dateStr}</td>
+        <td><span class="team-chip">${h.opponent||'—'}</span></td>
+        <td style="color:var(--text3);font-size:12px;">${h.inning||'—'}</td>
       </tr>`;
     }).join('');
+  }
+
+  // ── Charts ────────────────────────────────────────────────────────────────
+  function renderCharts() {
+    // Team chart
+    const teamCounts = {};
+    allHRs.forEach(h => { teamCounts[h.team] = (teamCounts[h.team] || 0) + 1; });
+    const teamsSorted = Object.entries(teamCounts).sort((a,b) => b[1]-a[1]).slice(0, 12);
+
+    if (teamChart) teamChart.destroy();
+    const teamCtx = document.getElementById('teamChart').getContext('2d');
+    teamChart = new Chart(teamCtx, {
+      type: 'bar',
+      data: {
+        labels: teamsSorted.map(([t]) => t),
+        datasets: [{
+          data: teamsSorted.map(([,c]) => c),
+          backgroundColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#1a2030'),
+          borderColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#2a3245'),
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#4a5568', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+
+    // Date chart
+    const dateCounts = {};
+    allHRs.forEach(h => {
+      if (!h.date) return;
+      dateCounts[h.date] = (dateCounts[h.date] || 0) + 1;
+    });
+    const datesSorted = Object.entries(dateCounts).sort((a,b) => a[0].localeCompare(b[0]));
+
+    if (dateChart) dateChart.destroy();
+    const dateCtx = document.getElementById('dateChart').getContext('2d');
+    dateChart = new Chart(dateCtx, {
+      type: 'line',
+      data: {
+        labels: datesSorted.map(([d]) => {
+          try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); }
+          catch { return d; }
+        }),
+        datasets: [{
+          data: datesSorted.map(([,c]) => c),
+          borderColor: '#e8332a',
+          backgroundColor: 'rgba(232,51,42,0.1)',
+          borderWidth: 2,
+          pointBackgroundColor: '#e8332a',
+          pointRadius: 4,
+          fill: true,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#4a5568', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
   }
 </script>
 </body>
