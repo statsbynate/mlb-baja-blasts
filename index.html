@@ -6,6 +6,9 @@
   <title>Baja Blast Tracker 2026</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -252,7 +255,7 @@
       color: var(--text); font-size: 13px; font-family: 'Barlow', sans-serif; cursor: pointer;
     }
     .filter-select:focus { outline: none; border-color: var(--accent); }
-    .results-count { margin-left: auto; font-size: 12px; color: var(--text3); }
+    .results-count { font-size: 12px; color: var(--text3); }
 
     /* Table */
     .table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: auto; }
@@ -336,6 +339,35 @@
       pointer-events: none; z-index: 9999;
     }
 
+    .export-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; background: transparent;
+      border: 1px solid var(--border2); border-radius: var(--radius);
+      color: var(--text2); font-size: 13px; font-family: 'Barlow', sans-serif;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .export-btn:hover { background: var(--bg3); color: var(--accent); border-color: var(--accent); }
+    .export-btn:active { transform: scale(0.97); }
+
+    /* ── Map ── */
+    .map-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .map-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+    .map-title { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; color: var(--text2); text-transform: uppercase; }
+    .map-legend { display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--text3); }
+    .map-legend-item { display: flex; align-items: center; gap: 5px; }
+    .map-legend-dot { border-radius: 50%; background: var(--accent); }
+    #map-svg { width: 100%; display: block; }
+    .map-tooltip {
+      position: absolute; background: var(--bg); border: 1px solid var(--border2);
+      color: var(--text); padding: 7px 11px; border-radius: var(--radius);
+      font-size: 12px; font-family: 'Barlow', sans-serif;
+      pointer-events: none; opacity: 0; transition: opacity 0.15s;
+      white-space: nowrap; z-index: 10;
+    }
+    .map-tooltip strong { color: var(--accent); display: block; font-size: 13px; margin-bottom: 2px; }
+    .map-pending { text-align: center; padding: 2rem; font-size: 13px; color: var(--text3); }
+
     @media (max-width: 768px) {
       .main { padding: 1rem; }
       .site-header { padding: 1rem; }
@@ -418,6 +450,22 @@
     </div>
   </div>
 
+  <div class="map-card" id="map-section">
+    <div class="map-header">
+      <div class="map-title">Baja Blasts by ballpark</div>
+      <div class="map-legend">
+        <div class="map-legend-item"><div class="map-legend-dot" style="width:7px;height:7px;"></div> 1–2 blasts</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="width:11px;height:11px;"></div> 3–5 blasts</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="width:16px;height:16px;"></div> 6+ blasts</div>
+      </div>
+    </div>
+    <div id="map-wrap" style="position:relative;">
+      <div class="map-pending" id="map-pending">Waiting for Statcast distance data to plot ballpark blasts...</div>
+      <svg id="map-svg" viewBox="0 0 960 500" style="display:none;"></svg>
+      <div class="map-tooltip" id="map-tooltip"></div>
+    </div>
+  </div>
+
   <div class="controls">
     <div class="search-wrap">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -439,6 +487,10 @@
       <option value="team-asc">Team (A-Z)</option>
     </select>
     <div class="results-count" id="results-count"></div>
+    <button class="export-btn" onclick="exportPDF()">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8m-3-3 3 3 3-3M3 13h10"/></svg>
+      Export PDF
+    </button>
   </div>
 
   <div id="error-area"></div>
@@ -507,6 +559,7 @@
     applyTheme(next);
     localStorage.setItem(THEME_KEY, next);
     renderCharts(); // redraw charts with new colors
+    renderMap();
   }
 
   function applyTheme(theme) {
@@ -589,6 +642,7 @@
       populateFilters();
       renderTable();
       renderCharts();
+      renderMap();
 
       const now = new Date();
       document.getElementById('footer-updated').textContent =
@@ -860,6 +914,400 @@
     draw();
     showToast('🌊 Baja Blast detected!');
   }
+
+  // ── Ballpark map ──────────────────────────────────────────────────────────
+  const BALLPARKS = [
+    { name: "Yankee Stadium",          team: "NYY", lat: 40.8296, lng: -73.9262 },
+    { name: "Fenway Park",             team: "BOS", lat: 42.3467, lng: -71.0972 },
+    { name: "Camden Yards",            team: "BAL", lat: 39.2838, lng: -76.6218 },
+    { name: "Rogers Centre",           team: "TOR", lat: 43.6414, lng: -79.3894 },
+    { name: "Tropicana Field",         team: "TB",  lat: 27.7682, lng: -82.6534 },
+    { name: "Guaranteed Rate Field",   team: "CWS", lat: 41.8299, lng: -87.6338 },
+    { name: "Progressive Field",       team: "CLE", lat: 41.4962, lng: -81.6852 },
+    { name: "Comerica Park",           team: "DET", lat: 42.3390, lng: -83.0485 },
+    { name: "Kauffman Stadium",        team: "KC",  lat: 39.0517, lng: -94.4803 },
+    { name: "Target Field",            team: "MIN", lat: 44.9817, lng: -93.2781 },
+    { name: "Globe Life Field",        team: "TEX", lat: 32.7473, lng: -97.0832 },
+    { name: "Minute Maid Park",        team: "HOU", lat: 29.7572, lng: -95.3555 },
+    { name: "Angel Stadium",           team: "LAA", lat: 33.8003, lng: -117.8827 },
+    { name: "Oakland Coliseum",        team: "OAK", lat: 37.7516, lng: -122.2005 },
+    { name: "T-Mobile Park",           team: "SEA", lat: 47.5914, lng: -122.3325 },
+    { name: "Citizens Bank Park",      team: "PHI", lat: 39.9061, lng: -75.1665 },
+    { name: "Citi Field",              team: "NYM", lat: 40.7571, lng: -73.8458 },
+    { name: "Nationals Park",          team: "WSH", lat: 38.8731, lng: -77.0074 },
+    { name: "Truist Park",             team: "ATL", lat: 33.8908, lng: -84.4678 },
+    { name: "loanDepot park",          team: "MIA", lat: 25.7781, lng: -80.2197 },
+    { name: "Wrigley Field",           team: "CHC", lat: 41.9484, lng: -87.6553 },
+    { name: "Great American Ball Park",team: "CIN", lat: 39.0979, lng: -84.5082 },
+    { name: "American Family Field",   team: "MIL", lat: 43.0280, lng: -87.9712 },
+    { name: "PNC Park",                team: "PIT", lat: 40.4469, lng: -80.0057 },
+    { name: "Busch Stadium",           team: "STL", lat: 38.6226, lng: -90.1928 },
+    { name: "Dodger Stadium",          team: "LAD", lat: 34.0739, lng: -118.2400 },
+    { name: "Oracle Park",             team: "SF",  lat: 37.7786, lng: -122.3893 },
+    { name: "Petco Park",              team: "SD",  lat: 32.7073, lng: -117.1566 },
+    { name: "Chase Field",             team: "ARI", lat: 33.4455, lng: -112.0667 },
+    { name: "Coors Field",             team: "COL", lat: 39.7559, lng: -104.9942 },
+  ];
+
+  let mapLoaded = false;
+  let mapSvg = null;
+  let mapProjection = null;
+
+  function renderMap() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const bajaBlasts = allHRs.filter(h => h.distance && h.distance >= 420);
+
+    const pending = document.getElementById('map-pending');
+    const svg = document.getElementById('map-svg');
+
+    if (bajaBlasts.length === 0) {
+      pending.style.display = 'block';
+      svg.style.display = 'none';
+      return;
+    }
+
+    pending.style.display = 'none';
+    svg.style.display = 'block';
+
+    // Count blasts per home team (ballpark = home team's park)
+    const blastsByTeam = {};
+    bajaBlasts.forEach(h => {
+      // home team is whoever is NOT the opponent — use team field
+      // We track by home team abbreviation matching ballpark
+      const homeTeam = h.team;
+      blastsByTeam[homeTeam] = (blastsByTeam[homeTeam] || 0) + 1;
+      // Also count visiting team blasts at opponent's park
+      const awayTeam = h.opponent;
+      if (awayTeam && awayTeam !== homeTeam) {
+        blastsByTeam[awayTeam] = blastsByTeam[awayTeam] || 0;
+      }
+    });
+
+    // Count ALL blasts at each ballpark (home team's park)
+    const blastsByPark = {};
+    bajaBlasts.forEach(h => {
+      // The game is at the home team's park
+      // We need to figure out which team is home
+      // Our data has team + opponent; home team = team when half=bottom, but we don't have that here
+      // Best approximation: count by home team abbreviation
+      const key = h.team;
+      blastsByPark[key] = (blastsByPark[key] || 0) + 1;
+    });
+
+    const stateFill = isDark ? '#0d301f' : '#e4f5ee';
+    const stateBorder = isDark ? 'rgba(0,220,160,0.12)' : 'rgba(0,160,110,0.15)';
+    const accentColor = isDark ? '#00dca0' : '#009e72';
+    const tooltipBg = isDark ? '#051a14' : '#ffffff';
+    const tooltipBorder = isDark ? 'rgba(0,220,160,0.3)' : 'rgba(0,160,110,0.3)';
+
+    const d3svg = d3.select('#map-svg');
+    d3svg.selectAll('*').remove();
+
+    const projection = d3.geoAlbersUsa().scale(1100).translate([480, 250]);
+    const path = d3.geoPath(projection);
+
+    d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(us => {
+      d3svg.append('g')
+        .selectAll('path')
+        .data(topojson.feature(us, us.objects.states).features)
+        .join('path')
+        .attr('d', path)
+        .attr('fill', stateFill)
+        .attr('stroke', stateBorder)
+        .attr('stroke-width', 0.5);
+
+      const tooltip = document.getElementById('map-tooltip');
+      const wrap = document.getElementById('map-wrap');
+
+      BALLPARKS.forEach(bp => {
+        const coords = projection([bp.lng, bp.lat]);
+        if (!coords) return;
+        const [x, y] = coords;
+        const count = blastsByPark[bp.team] || 0;
+        if (count === 0) {
+          // draw small ghost dot
+          d3svg.append('circle')
+            .attr('cx', x).attr('cy', y).attr('r', 3)
+            .attr('fill', stateBorder)
+            .attr('stroke', 'none');
+          return;
+        }
+
+        const r = count >= 6 ? 12 : count >= 3 ? 8 : 5;
+
+        // Pulse ring
+        d3svg.append('circle')
+          .attr('cx', x).attr('cy', y).attr('r', r + 4)
+          .attr('fill', isDark ? 'rgba(0,220,160,0.12)' : 'rgba(0,158,114,0.12)')
+          .attr('pointer-events', 'none');
+
+        // Main dot
+        d3svg.append('circle')
+          .attr('cx', x).attr('cy', y).attr('r', r)
+          .attr('fill', accentColor)
+          .attr('opacity', 0.9)
+          .attr('cursor', 'pointer')
+          .on('mouseover', () => {
+            tooltip.innerHTML = `<strong>${bp.name}</strong>${bp.team} · ${count} Baja Blast${count !== 1 ? 's' : ''}`;
+            tooltip.style.opacity = '1';
+            tooltip.style.background = tooltipBg;
+            tooltip.style.borderColor = tooltipBorder;
+          })
+          .on('mousemove', (event) => {
+            const svgRect = svg.getBoundingClientRect();
+            tooltip.style.left = (event.clientX - svgRect.left + 12) + 'px';
+            tooltip.style.top = (event.clientY - svgRect.top - 36) + 'px';
+          })
+          .on('mouseout', () => { tooltip.style.opacity = '0'; });
+
+        // Count label for larger dots
+        if (count >= 3) {
+          d3svg.append('text')
+            .attr('x', x).attr('y', y + 4)
+            .attr('text-anchor', 'middle')
+            .attr('fill', isDark ? '#051a14' : '#ffffff')
+            .attr('font-size', '9px')
+            .attr('font-weight', '700')
+            .attr('pointer-events', 'none')
+            .text(count);
+        }
+      });
+    });
+  }
+
+  // ── PDF Export ────────────────────────────────────────────────────────────
+  function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const W = 210;
+    const margin = 16;
+    const colW = W - margin * 2;
+    let y = margin;
+
+    // ── Colors ──
+    const teal   = [0, 180, 130];
+    const dark   = [5, 26, 20];
+    const mid    = [30, 120, 88];
+    const light  = [212, 245, 234];
+    const white  = [255, 255, 255];
+    const gray   = [100, 140, 120];
+
+    // ── Active filters ──
+    const search     = document.getElementById('search-input').value.trim();
+    const teamFilter = document.getElementById('team-filter').value;
+    const dateFilter = document.getElementById('date-filter').value;
+    const sort       = document.getElementById('sort-select').value;
+
+    // ── Filter + sort rows (same logic as renderTable) ──
+    let rows = allHRs.filter(h => {
+      if (search && !h.player.toLowerCase().includes(search.toLowerCase()) && !h.team.toLowerCase().includes(search.toLowerCase())) return false;
+      if (teamFilter && h.team !== teamFilter) return false;
+      if (dateFilter && h.date !== dateFilter) return false;
+      return true;
+    });
+    rows.sort((a,b) => {
+      if (sort === 'dist-desc') return (b.distance||0) - (a.distance||0);
+      if (sort === 'date-desc') return (b.date||'').localeCompare(a.date||'');
+      if (sort === 'date-asc')  return (a.date||'').localeCompare(b.date||'');
+      if (sort === 'player-asc') return a.player.localeCompare(b.player);
+      if (sort === 'team-asc')   return a.team.localeCompare(b.team);
+      return 0;
+    });
+
+    const bajaRows = rows.filter(h => h.distance && h.distance >= 420);
+
+    // ── Header banner ──
+    doc.setFillColor(...dark);
+    doc.rect(0, 0, W, 28, 'F');
+    doc.setFillColor(...teal);
+    doc.rect(0, 26, W, 2, 'F');
+
+    doc.setTextColor(...teal);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BAJA BLAST TRACKER', margin, 12);
+
+    doc.setTextColor(...white);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('2026 MLB Season  •  420+ ft Home Runs', margin, 20);
+
+    const now = new Date();
+    doc.setTextColor(...mid);
+    doc.setFontSize(8);
+    doc.text(`Generated ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, W - margin, 20, { align: 'right' });
+
+    y = 36;
+
+    // ── Active filter pills ──
+    const filters = [];
+    if (teamFilter) filters.push(`Team: ${teamFilter}`);
+    if (dateFilter) {
+      try { filters.push(`Date: ${new Date(dateFilter + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'})}`); }
+      catch { filters.push(`Date: ${dateFilter}`); }
+    }
+    if (search) filters.push(`Search: "${search}"`);
+    filters.push(`Sort: ${sort.replace('-', ' ')}`);
+
+    if (filters.length > 0) {
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...gray);
+      doc.text('Filters active: ' + filters.join('  ·  '), margin, y);
+      y += 7;
+    }
+
+    // ── Stat cards row ──
+    const statCards = [
+      { label: 'Total HRs shown', value: String(rows.length) },
+      { label: 'Baja Blasts', value: String(bajaRows.length) },
+      { label: 'Longest blast', value: bajaRows.length ? bajaRows.reduce((a,b) => b.distance > a.distance ? b : a).distance + ' ft' : '—' },
+      { label: 'Avg distance', value: bajaRows.length ? Math.round(bajaRows.reduce((s,h) => s + h.distance, 0) / bajaRows.length) + ' ft' : '—' },
+    ];
+
+    const cardW = colW / 4 - 2;
+    statCards.forEach((card, i) => {
+      const x = margin + i * (cardW + 2.5);
+      doc.setFillColor(...dark);
+      doc.roundedRect(x, y, cardW, 18, 2, 2, 'F');
+      doc.setFillColor(...teal);
+      doc.rect(x, y, cardW, 1.5, 'F');
+
+      doc.setTextColor(...gray);
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.text(card.label.toUpperCase(), x + 3, y + 7);
+
+      doc.setTextColor(...white);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(card.value, x + 3, y + 15);
+    });
+    y += 24;
+
+    // ── Table header ──
+    const cols = [
+      { label: '#',            w: 8  },
+      { label: 'Player',       w: 42 },
+      { label: 'Team',         w: 16 },
+      { label: 'Distance',     w: 24 },
+      { label: 'Exit velo',    w: 22 },
+      { label: 'Launch angle', w: 24 },
+      { label: 'Date',         w: 20 },
+      { label: 'Opp',          w: 16 },
+      { label: 'Inn',          w: 6  },
+    ];
+
+    doc.setFillColor(...dark);
+    doc.rect(margin, y, colW, 7, 'F');
+    doc.setFillColor(...teal);
+    doc.rect(margin, y, colW, 1, 'F');
+
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...teal);
+    let cx = margin + 2;
+    cols.forEach(col => {
+      doc.text(col.label.toUpperCase(), cx, y + 5);
+      cx += col.w;
+    });
+    y += 8;
+
+    // ── Table rows ──
+    const pageH = 297;
+    const rowH = 6.5;
+
+    rows.forEach((h, i) => {
+      if (y + rowH > pageH - 16) {
+        doc.addPage();
+        y = margin;
+        // Repeat header on new page
+        doc.setFillColor(...dark);
+        doc.rect(margin, y, colW, 7, 'F');
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...teal);
+        let hx = margin + 2;
+        cols.forEach(col => { doc.text(col.label.toUpperCase(), hx, y + 5); hx += col.w; });
+        y += 8;
+      }
+
+      const isBaja = h.distance && h.distance >= 420;
+      const isElite = h.distance && h.distance >= 450;
+      const isEven = i % 2 === 0;
+
+      if (isBaja) {
+        doc.setFillColor(0, 80, 50);
+      } else if (isEven) {
+        doc.setFillColor(8, 35, 24);
+      } else {
+        doc.setFillColor(13, 48, 31);
+      }
+      doc.rect(margin, y, colW, rowH, 'F');
+
+      // Teal left accent for Baja Blasts
+      if (isBaja) {
+        doc.setFillColor(...teal);
+        doc.rect(margin, y, 1.5, rowH, 'F');
+      }
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', isBaja ? 'bold' : 'normal');
+
+      let rx = margin + 2;
+      const vals = [
+        String(i + 1),
+        h.player,
+        h.team,
+        h.distance ? h.distance + ' ft' : 'pending',
+        h.exit_velocity ? h.exit_velocity.toFixed(1) + ' mph' : '—',
+        h.launch_angle ? h.launch_angle.toFixed(1) + '°' : '—',
+        h.date ? (() => { try { return new Date(h.date + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); } catch { return h.date; } })() : '—',
+        h.opponent || '—',
+        h.inning || '—',
+      ];
+
+      vals.forEach((val, vi) => {
+        if (vi === 3 && isBaja) {
+          doc.setTextColor(...(isElite ? [0, 255, 200] : teal));
+        } else if (vi === 0) {
+          doc.setTextColor(...gray);
+        } else {
+          doc.setTextColor(...(isBaja ? light : white));
+        }
+        const maxW = cols[vi].w - 2;
+        const clipped = doc.getTextWidth(val) > maxW
+          ? val.substring(0, Math.floor(val.length * maxW / doc.getTextWidth(val)) - 1) + '…'
+          : val;
+        doc.text(clipped, rx, y + rowH - 1.8);
+        rx += cols[vi].w;
+      });
+
+      y += rowH;
+    });
+
+    // ── Footer ──
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFillColor(...dark);
+      doc.rect(0, 290, W, 7, 'F');
+      doc.setTextColor(...mid);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Baja Blast Tracker 2026  •  Sources: MLB Stats API + Baseball Savant (Statcast)', margin, 295);
+      doc.text(`Page ${p} of ${totalPages}`, W - margin, 295, { align: 'right' });
+    }
+
+    // ── Build filename ──
+    const datePart = dateFilter || now.toISOString().split('T')[0];
+    const teamPart = teamFilter ? `-${teamFilter}` : '';
+    doc.save(`baja-blast-report${teamPart}-${datePart}.pdf`);
+  }
+
+  // ── Export PDF ────────────────────────────────────────────────────────────
+
 </script>
 </body>
 </html>
