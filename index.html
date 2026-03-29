@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MLB HR Tracker 2026 — 420 ft or More</title>
+  <title>Baja Blast Tracker 2026</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
+    /* ── Dark theme (default) ── */
+    [data-theme="dark"] {
       --bg: #051a14;
       --bg2: #082318;
       --bg3: #0d301f;
@@ -23,22 +24,49 @@
       --green: #00dca0;
       --green-bg: rgba(0,220,160,0.1);
       --amber: #00ffcc;
-      --amber-bg: rgba(0,255,204,0.1);
       --blue: #00b8a0;
-      --blue-bg: rgba(0,184,160,0.1);
+      --chart-bar: #0d301f;
+      --chart-bar-border: #134030;
+      --chart-tick: #2e7a58;
+      --chart-grid: rgba(0,220,160,0.04);
       --radius: 8px;
       --radius-lg: 12px;
     }
-    
+
+    /* ── Light theme ── */
+    [data-theme="light"] {
+      --bg: #f0faf6;
+      --bg2: #ffffff;
+      --bg3: #e4f5ee;
+      --border: rgba(0,160,110,0.15);
+      --border2: rgba(0,160,110,0.25);
+      --text: #0a2e1f;
+      --text2: #1a7a55;
+      --text3: #5aab88;
+      --accent: #009e72;
+      --accent2: #00c48c;
+      --green: #009e72;
+      --green-bg: rgba(0,158,114,0.1);
+      --amber: #007a58;
+      --blue: #008f6a;
+      --chart-bar: #e4f5ee;
+      --chart-bar-border: #b8e8d4;
+      --chart-tick: #5aab88;
+      --chart-grid: rgba(0,160,110,0.06);
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
     body {
       font-family: 'Barlow', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       padding: 0;
+      transition: background 0.2s, color 0.2s;
     }
 
-    /* Header */
+    /* ── Header ── */
     .site-header {
       background: var(--bg2);
       border-bottom: 1px solid var(--border);
@@ -58,8 +86,13 @@
       color: var(--text);
     }
 
-    .site-title span {
-      color: var(--accent);
+    .site-title span { color: var(--accent); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     .live-badge {
@@ -70,29 +103,19 @@
       font-weight: 500;
       color: var(--green);
       background: var(--green-bg);
-      border: 1px solid rgba(34,197,94,0.2);
+      border: 1px solid var(--border2);
       padding: 4px 10px;
       border-radius: 999px;
     }
 
     .live-dot {
-      width: 6px;
-      height: 6px;
+      width: 6px; height: 6px;
       border-radius: 50%;
       background: var(--green);
       animation: pulse 2s infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
     .auto-refresh-label {
       font-size: 12px;
@@ -109,12 +132,29 @@
       min-width: 32px;
     }
 
+    /* Theme toggle */
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      background: transparent;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text2);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: 'Barlow', sans-serif;
+    }
+    .theme-toggle:hover { background: var(--bg3); color: var(--text); }
+
     .refresh-btn {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       padding: 8px 16px;
-      background: var(--accent);
+      background: #00a87a;
       color: white;
       border: none;
       border-radius: var(--radius);
@@ -125,12 +165,11 @@
       cursor: pointer;
       transition: background 0.15s, transform 0.1s;
     }
-
-    .refresh-btn:hover { background: #c2291f; }
+    .refresh-btn:hover { background: #008f68; }
     .refresh-btn:active { transform: scale(0.97); }
     .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Main layout */
+    /* ── Main ── */
     .main { padding: 1.5rem 2rem; max-width: 1200px; margin: 0 auto; }
 
     /* Setup panel */
@@ -141,33 +180,22 @@
       padding: 1.25rem;
       margin-bottom: 1.5rem;
     }
-
     .setup-panel p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
     .setup-panel code { background: var(--bg3); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent2); }
     .setup-panel label { display: block; font-size: 12px; color: var(--blue); font-weight: 500; margin-bottom: 5px; }
-
     .setup-row { display: flex; gap: 8px; }
     .setup-row input {
-      flex: 1;
-      padding: 8px 12px;
-      background: var(--bg3);
-      border: 1px solid var(--border2);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-size: 13px;
-      font-family: monospace;
+      flex: 1; padding: 8px 12px;
+      background: var(--bg3); border: 1px solid var(--border2);
+      border-radius: var(--radius); color: var(--text);
+      font-size: 13px; font-family: monospace;
     }
-    .setup-row input:focus { outline: none; border-color: var(--blue); }
+    .setup-row input:focus { outline: none; border-color: var(--accent); }
     .setup-row button {
-      padding: 8px 16px;
-      background: var(--blue);
-      color: white;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 13px;
-      cursor: pointer;
+      padding: 8px 16px; background: var(--blue);
+      color: white; border: none; border-radius: var(--radius);
+      font-size: 13px; cursor: pointer;
     }
-    .setup-row button:hover { background: #2563eb; }
 
     /* Stats grid */
     .stats-grid {
@@ -185,7 +213,6 @@
       position: relative;
       overflow: hidden;
     }
-
     .stat-card::before {
       content: '';
       position: absolute;
@@ -193,282 +220,120 @@
       height: 2px;
       background: var(--accent);
     }
-
     .stat-card.green::before { background: var(--green); }
     .stat-card.amber::before { background: var(--amber); }
-    .stat-card.blue::before { background: var(--blue); }
+    .stat-card.blue::before  { background: var(--blue); }
 
-    .stat-label {
-      font-size: 11px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text2);
-      margin-bottom: 6px;
-    }
+    .stat-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text2); margin-bottom: 6px; }
+    .stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
 
-    .stat-value {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 32px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1;
-    }
-
-    .stat-sub {
-      font-size: 12px;
-      color: var(--text3);
-      margin-top: 4px;
-    }
-
-    /* Charts section */
-    .charts-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 1.5rem;
-    }
-
-    .chart-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem;
-    }
-
-    .chart-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      color: var(--text2);
-      text-transform: uppercase;
-      margin-bottom: 1rem;
-    }
-
+    /* Charts */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.5rem; }
+    .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+    .chart-title { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; color: var(--text2); text-transform: uppercase; margin-bottom: 1rem; }
     .chart-wrap { position: relative; height: 220px; }
 
     /* Controls */
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .search-wrap {
-      position: relative;
-      flex: 1;
-      min-width: 200px;
-      max-width: 300px;
-    }
-
-    .search-wrap svg {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text3);
-      pointer-events: none;
-    }
-
+    .controls { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 300px; }
+    .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; }
     .search-input {
-      width: 100%;
-      padding: 8px 12px 8px 34px;
-      background: var(--bg2);
-      border: 1px solid var(--border2);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-size: 13px;
-      font-family: 'Barlow', sans-serif;
+      width: 100%; padding: 8px 12px 8px 34px;
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: var(--radius); color: var(--text);
+      font-size: 13px; font-family: 'Barlow', sans-serif;
     }
-
     .search-input:focus { outline: none; border-color: var(--accent); }
     .search-input::placeholder { color: var(--text3); }
-
     .filter-select {
-      padding: 8px 12px;
-      background: var(--bg2);
-      border: 1px solid var(--border2);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-size: 13px;
-      font-family: 'Barlow', sans-serif;
-      cursor: pointer;
+      padding: 8px 12px; background: var(--bg2);
+      border: 1px solid var(--border2); border-radius: var(--radius);
+      color: var(--text); font-size: 13px; font-family: 'Barlow', sans-serif; cursor: pointer;
     }
-
     .filter-select:focus { outline: none; border-color: var(--accent); }
-
-    .results-count {
-      margin-left: auto;
-      font-size: 12px;
-      color: var(--text3);
-    }
+    .results-count { margin-left: auto; font-size: 12px; color: var(--text3); }
 
     /* Table */
-    .table-wrap {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      overflow: auto;
-    }
-
+    .table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-
     thead th {
-      padding: 10px 14px;
-      text-align: left;
+      padding: 10px 14px; text-align: left;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--text3);
-      border-bottom: 1px solid var(--border);
-      background: var(--bg3);
-      cursor: pointer;
-      white-space: nowrap;
-      user-select: none;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;
+      color: var(--text3); border-bottom: 1px solid var(--border);
+      background: var(--bg3); white-space: nowrap; user-select: none;
     }
-
     thead th:hover { color: var(--text2); }
-    thead th.sorted { color: var(--accent); }
-
-    tbody tr {
-      border-bottom: 1px solid var(--border);
-      transition: background 0.1s;
-    }
-
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--bg3); }
     tbody td { padding: 10px 14px; vertical-align: middle; }
 
-    .rank {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
-      color: var(--text3);
-      width: 32px;
-    }
-
-    .player-name {
-      font-weight: 500;
-      color: var(--text);
-    }
-
+    .rank { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; color: var(--text3); width: 32px; }
+    .player-name { font-weight: 500; color: var(--text); }
     .team-chip {
-      display: inline-block;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: var(--bg3);
-      border: 1px solid var(--border2);
-      color: var(--text2);
+      display: inline-block; font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      padding: 2px 8px; border-radius: 4px;
+      background: var(--bg3); border: 1px solid var(--border2); color: var(--text2);
     }
-
     .dist-badge {
-      display: inline-block;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: var(--green-bg);
-      color: var(--green);
-      border: 1px solid rgba(34,197,94,0.2);
+      display: inline-block; font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+      background: var(--green-bg); color: var(--green); border: 1px solid var(--border2);
     }
+    .dist-badge.elite { background: rgba(0,220,160,0.15); color: var(--accent2); border-color: var(--border2); }
+    .dist-badge.pending { background: var(--bg3); color: var(--text3); border-color: var(--border); font-size: 11px; }
 
-    .dist-badge.elite {
-      background: rgba(232,51,42,0.1);
-      color: var(--accent2);
-      border-color: rgba(232,51,42,0.2);
+    /* Tweet button */
+    .tweet-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 4px;
+      background: transparent; border: 1px solid var(--border2);
+      color: var(--text3); font-size: 11px; cursor: pointer;
+      font-family: 'Barlow', sans-serif;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap;
     }
+    .tweet-btn:hover { background: #1da1f2; border-color: #1da1f2; color: white; }
 
-    .dist-badge.pending {
-      background: var(--bg3);
-      color: var(--text3);
-      border-color: var(--border);
-      font-size: 11px;
-    }
-
-    .new-badge {
-      display: inline-block;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 1px 5px;
-      border-radius: 3px;
-      background: var(--accent);
-      color: white;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 4rem 1rem;
-      color: var(--text3);
-      font-size: 14px;
-    }
+    .empty-state { text-align: center; padding: 4rem 1rem; color: var(--text3); font-size: 14px; }
 
     .error-msg {
-      background: rgba(232,51,42,0.1);
-      border: 1px solid rgba(232,51,42,0.2);
-      color: #ff6b6b;
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      font-size: 13px;
-      margin-bottom: 1rem;
+      background: rgba(0,220,160,0.08); border: 1px solid rgba(0,220,160,0.2);
+      color: var(--accent); border-radius: var(--radius);
+      padding: 12px 16px; font-size: 13px; margin-bottom: 1rem;
     }
 
     .footer {
-      font-size: 11px;
-      color: var(--text3);
-      margin-top: 1rem;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 4px;
-      padding-bottom: 2rem;
+      font-size: 11px; color: var(--text3); margin-top: 1rem;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; padding-bottom: 2rem;
     }
 
     .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.2);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(0,220,160,0.2); border-top-color: white;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Notification toast */
+    /* Toast */
     .toast {
-      position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      background: var(--bg2);
-      border: 1px solid var(--green);
-      color: var(--green);
-      padding: 10px 16px;
-      border-radius: var(--radius);
-      font-size: 13px;
-      font-weight: 500;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.3s;
-      z-index: 999;
-      pointer-events: none;
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--bg2); border: 1px solid var(--green);
+      color: var(--green); padding: 10px 16px; border-radius: var(--radius);
+      font-size: 13px; font-weight: 500;
+      opacity: 0; transform: translateY(10px);
+      transition: all 0.3s; z-index: 999; pointer-events: none;
     }
+    .toast.show { opacity: 1; transform: translateY(0); }
 
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
+    /* Confetti canvas */
+    #confetti-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 9999;
     }
 
     @media (max-width: 768px) {
@@ -482,9 +347,11 @@
 </head>
 <body>
 
+<canvas id="confetti-canvas"></canvas>
+
 <header class="site-header">
   <div>
-    <div class="site-title">MLB HR Tracker <span>2026</span></div>
+    <div class="site-title">🌊 Baja Blast Tracker <span>2026</span></div>
   </div>
   <div class="header-right">
     <div class="live-badge">
@@ -494,6 +361,9 @@
     <div class="auto-refresh-label">
       Auto-refresh in <span class="countdown" id="countdown">10:00</span>
     </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">
+      🌙 Dark
+    </button>
     <button class="refresh-btn" id="refresh-btn" onclick="loadData(true)">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/>
@@ -521,9 +391,9 @@
       <div class="stat-sub">2026 season</div>
     </div>
     <div class="stat-card green">
-      <div class="stat-label">420+ ft HRs</div>
+      <div class="stat-label">Baja Blasts</div>
       <div class="stat-value" id="stat-420">—</div>
-      <div class="stat-sub">verified distance</div>
+      <div class="stat-sub">420+ ft verified</div>
     </div>
     <div class="stat-card amber">
       <div class="stat-label">Longest Blast</div>
@@ -544,7 +414,7 @@
     </div>
     <div class="chart-card">
       <div class="chart-title">Most Baja Blasts by player</div>
-      <div class="chart-wrap"><canvas id="dateChart"></canvas></div>
+      <div class="chart-wrap"><canvas id="playerChart"></canvas></div>
     </div>
   </div>
 
@@ -586,10 +456,11 @@
           <th>Date</th>
           <th>Opp</th>
           <th>Inn</th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="hr-tbody">
-        <tr><td colspan="9" class="empty-state">Connect your backend to load live data.</td></tr>
+        <tr><td colspan="10" class="empty-state">Connect your backend to load live data.</td></tr>
       </tbody>
     </table>
   </div>
@@ -605,17 +476,21 @@
 
 <script>
   const STORAGE_KEY = 'mlb_hr_backend_url';
-  const REFRESH_INTERVAL = 600; // 10 minutes in seconds
+  const THEME_KEY = 'mlb_hr_theme';
+  const REFRESH_INTERVAL = 600;
   let allHRs = [];
-  let previousCount = 0;
   let countdownTimer = null;
   let secondsLeft = REFRESH_INTERVAL;
   let teamChart = null;
-  let dateChart = null;
+  let playerChart = null;
   let lastSeenPks = new Set();
+  let previousBajaCount = 0;
 
   // ── Init ──────────────────────────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+    applyTheme(savedTheme);
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       document.getElementById('backend-url').value = saved;
@@ -625,6 +500,22 @@
     startCountdown();
   });
 
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem(THEME_KEY, next);
+    renderCharts(); // redraw charts with new colors
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = document.getElementById('theme-btn');
+    btn.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+  }
+
+  // ── Backend URL ───────────────────────────────────────────────────────────
   function saveBackendUrl() {
     const url = document.getElementById('backend-url').value.trim().replace(/\/$/, '');
     if (!url) return;
@@ -637,7 +528,7 @@
     return localStorage.getItem(STORAGE_KEY) || document.getElementById('backend-url').value.trim().replace(/\/$/, '');
   }
 
-  // ── Countdown & auto-refresh ──────────────────────────────────────────────
+  // ── Countdown ─────────────────────────────────────────────────────────────
   function startCountdown() {
     if (countdownTimer) clearInterval(countdownTimer);
     secondsLeft = REFRESH_INTERVAL;
@@ -645,10 +536,7 @@
     countdownTimer = setInterval(() => {
       secondsLeft--;
       updateCountdownDisplay();
-      if (secondsLeft <= 0) {
-        secondsLeft = REFRESH_INTERVAL;
-        loadData(false);
-      }
+      if (secondsLeft <= 0) { secondsLeft = REFRESH_INTERVAL; loadData(false); }
     }, 1000);
   }
 
@@ -668,7 +556,6 @@
     errArea.innerHTML = '';
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Loading...';
-
     if (manual) startCountdown();
 
     try {
@@ -681,10 +568,20 @@
       const newPks = new Set(newHRs.map(h => h.game_pk + h.player + h.date));
       const addedCount = [...newPks].filter(k => !lastSeenPks.has(k)).length;
 
+      // Count new Baja Blasts specifically
+      const newBajaCount = newHRs.filter(h => h.distance && h.distance >= 420).length;
+      const addedBajas = newBajaCount - previousBajaCount;
+
       if (lastSeenPks.size > 0 && addedCount > 0) {
         showToast(`${addedCount} new home run${addedCount > 1 ? 's' : ''} added!`);
       }
 
+      // Fire confetti if new Baja Blasts detected
+      if (lastSeenPks.size > 0 && addedBajas > 0) {
+        setTimeout(() => fireConfetti(), 400);
+      }
+
+      previousBajaCount = newBajaCount;
       lastSeenPks = newPks;
       allHRs = newHRs;
 
@@ -713,11 +610,9 @@
   function updateStats() {
     const known = allHRs.filter(h => h.distance && h.distance >= 420);
     const games = new Set(allHRs.map(h => h.game_pk)).size;
-
     document.getElementById('stat-total').textContent = allHRs.length;
     document.getElementById('stat-420').textContent = known.length || '—';
     document.getElementById('stat-games').textContent = games;
-
     if (known.length > 0) {
       const longest = known.reduce((a,b) => b.distance > a.distance ? b : a);
       document.getElementById('stat-longest').textContent = longest.distance + ' ft';
@@ -764,9 +659,9 @@
     rows.sort((a,b) => {
       if (sort === 'dist-desc') return (b.distance||0) - (a.distance||0);
       if (sort === 'date-desc') return (b.date||'').localeCompare(a.date||'');
-      if (sort === 'date-asc') return (a.date||'').localeCompare(b.date||'');
+      if (sort === 'date-asc')  return (a.date||'').localeCompare(b.date||'');
       if (sort === 'player-asc') return a.player.localeCompare(b.player);
-      if (sort === 'team-asc') return a.team.localeCompare(b.team);
+      if (sort === 'team-asc')   return a.team.localeCompare(b.team);
       return 0;
     });
 
@@ -775,15 +670,9 @@
 
     const tbody = document.getElementById('hr-tbody');
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No results match your filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No results match your filters.</td></tr>';
       return;
     }
-
-    // Track which are "new" (added since last manual refresh)
-    const isNew = (h) => {
-      const key = h.game_pk + h.player + h.date;
-      return false; // placeholder — would need previous snapshot
-    };
 
     tbody.innerHTML = rows.map((h, i) => {
       const dist = h.distance;
@@ -805,6 +694,11 @@
         catch { dateStr = h.date; }
       }
 
+      // Tweet text
+      const distText = dist ? `${dist} ft` : 'an absolute shot';
+      const tweetText = encodeURIComponent(`🌊 Baja Blast! ${h.player} (${h.team}) just hit ${distText} off ${h.opponent} on ${dateStr}! #BajaBlast #MLB2026`);
+      const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
+
       return `<tr>
         <td class="rank">${i+1}</td>
         <td><span class="player-name">${h.player}</span></td>
@@ -815,26 +709,36 @@
         <td style="color:var(--text2);font-size:13px;">${dateStr}</td>
         <td><span class="team-chip">${h.opponent||'—'}</span></td>
         <td style="color:var(--text3);font-size:12px;">${h.inning||'—'}</td>
+        <td><a href="${tweetUrl}" target="_blank" class="tweet-btn">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Tweet
+        </a></td>
       </tr>`;
     }).join('');
   }
 
   // ── Charts ────────────────────────────────────────────────────────────────
   function renderCharts() {
-    // Only count Baja Blasts (420+ ft HRs with confirmed distance)
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const accentColor = isDark ? '#00dca0' : '#009e72';
+    const barBg = isDark ? '#0d301f' : '#e4f5ee';
+    const barBorder = isDark ? '#134030' : '#b8e8d4';
+    const tickColor = isDark ? '#2e7a58' : '#5aab88';
+    const gridColor = isDark ? 'rgba(0,220,160,0.04)' : 'rgba(0,160,110,0.06)';
+    const labelColor = isDark ? '#6abf9a' : '#1a7a55';
+
     const bajaBlasts = allHRs.filter(h => h.distance && h.distance >= 420);
 
-    // Left chart: Baja Blasts by team
+    // Team chart
     const teamCounts = {};
     bajaBlasts.forEach(h => { teamCounts[h.team] = (teamCounts[h.team] || 0) + 1; });
     const teamsSorted = Object.entries(teamCounts).sort((a,b) => b[1]-a[1]).slice(0, 12);
 
     if (teamChart) teamChart.destroy();
     const teamCtx = document.getElementById('teamChart').getContext('2d');
-
     if (teamsSorted.length === 0) {
-      // Show placeholder message on canvas
-      teamCtx.fillStyle = '#4a5568';
+      teamCtx.clearRect(0, 0, teamCtx.canvas.width, teamCtx.canvas.height);
+      teamCtx.fillStyle = tickColor;
       teamCtx.font = '13px Barlow, sans-serif';
       teamCtx.textAlign = 'center';
       teamCtx.fillText('Waiting for Statcast distance data...', teamCtx.canvas.width / 2, 110);
@@ -845,58 +749,54 @@
           labels: teamsSorted.map(([t]) => t),
           datasets: [{
             data: teamsSorted.map(([,c]) => c),
-            backgroundColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#1a2030'),
-            borderColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#2a3245'),
-            borderWidth: 1,
-            borderRadius: 4,
+            backgroundColor: teamsSorted.map((_, i) => i === 0 ? accentColor : barBg),
+            borderColor: teamsSorted.map((_, i) => i === 0 ? accentColor : barBorder),
+            borderWidth: 1, borderRadius: 4,
           }]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: '#4a5568', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-            y: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            x: { ticks: { color: tickColor, font: { size: 11 } }, grid: { color: gridColor } },
+            y: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1 }, grid: { color: gridColor } }
           }
         }
       });
     }
 
-    // Right chart: Most Baja Blasts by player
+    // Player chart
     const playerCounts = {};
     bajaBlasts.forEach(h => { playerCounts[h.player] = (playerCounts[h.player] || 0) + 1; });
     const playersSorted = Object.entries(playerCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
 
-    if (dateChart) dateChart.destroy();
-    const playerCtx = document.getElementById('dateChart').getContext('2d');
-
+    if (playerChart) playerChart.destroy();
+    const playerCtx = document.getElementById('playerChart').getContext('2d');
     if (playersSorted.length === 0) {
-      playerCtx.fillStyle = '#4a5568';
+      playerCtx.clearRect(0, 0, playerCtx.canvas.width, playerCtx.canvas.height);
+      playerCtx.fillStyle = tickColor;
       playerCtx.font = '13px Barlow, sans-serif';
       playerCtx.textAlign = 'center';
       playerCtx.fillText('Waiting for Statcast distance data...', playerCtx.canvas.width / 2, 110);
     } else {
-      dateChart = new Chart(playerCtx, {
+      playerChart = new Chart(playerCtx, {
         type: 'bar',
         indexAxis: 'y',
         data: {
-          labels: playersSorted.map(([p]) => p.split(' ').pop()), // last name only
+          labels: playersSorted.map(([p]) => p.split(' ').pop()),
           datasets: [{
             data: playersSorted.map(([,c]) => c),
-            backgroundColor: playersSorted.map((_, i) => i === 0 ? '#e8332a' : '#1a2030'),
-            borderColor: playersSorted.map((_, i) => i === 0 ? '#e8332a' : '#2a3245'),
-            borderWidth: 1,
-            borderRadius: 4,
+            backgroundColor: playersSorted.map((_, i) => i === 0 ? accentColor : barBg),
+            borderColor: playersSorted.map((_, i) => i === 0 ? accentColor : barBorder),
+            borderWidth: 1, borderRadius: 4,
           }]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } },
-            y: { ticks: { color: '#8892a4', font: { size: 12 } }, grid: { display: false } }
+            x: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1 }, grid: { color: gridColor } },
+            y: { ticks: { color: labelColor, font: { size: 12 } }, grid: { display: false } }
           }
         }
       });
@@ -909,6 +809,56 @@
     t.textContent = msg;
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // ── Confetti ──────────────────────────────────────────────────────────────
+  function fireConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const COLORS = ['#00dca0','#00ffcc','#00b8a0','#ffffff','#a0ffe8','#005540'];
+    const pieces = Array.from({length: 150}, () => ({
+      x: Math.random() * canvas.width,
+      y: -10 - Math.random() * 100,
+      w: 6 + Math.random() * 8,
+      h: 4 + Math.random() * 6,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      rotation: Math.random() * Math.PI * 2,
+      vx: (Math.random() - 0.5) * 4,
+      vy: 2 + Math.random() * 4,
+      vr: (Math.random() - 0.5) * 0.2,
+      opacity: 1,
+    }));
+
+    let frame = 0;
+    const maxFrames = 180;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      pieces.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05; // gravity
+        p.rotation += p.vr;
+        p.opacity = Math.max(0, 1 - frame / maxFrames);
+
+        ctx.save();
+        ctx.globalAlpha = p.opacity;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      });
+      frame++;
+      if (frame < maxFrames) requestAnimationFrame(draw);
+      else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    draw();
+    showToast('🌊 Baja Blast detected!');
   }
 </script>
 </body>
