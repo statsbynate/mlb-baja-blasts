@@ -539,11 +539,11 @@
 
   <div class="charts-grid">
     <div class="chart-card">
-      <div class="chart-title">HRs by team</div>
+      <div class="chart-title">Baja Blasts by team</div>
       <div class="chart-wrap"><canvas id="teamChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">HRs per day</div>
+      <div class="chart-title">Most Baja Blasts by player</div>
       <div class="chart-wrap"><canvas id="dateChart"></canvas></div>
     </div>
   </div>
@@ -821,74 +821,86 @@
 
   // ── Charts ────────────────────────────────────────────────────────────────
   function renderCharts() {
-    // Team chart
+    // Only count Baja Blasts (420+ ft HRs with confirmed distance)
+    const bajaBlasts = allHRs.filter(h => h.distance && h.distance >= 420);
+
+    // Left chart: Baja Blasts by team
     const teamCounts = {};
-    allHRs.forEach(h => { teamCounts[h.team] = (teamCounts[h.team] || 0) + 1; });
+    bajaBlasts.forEach(h => { teamCounts[h.team] = (teamCounts[h.team] || 0) + 1; });
     const teamsSorted = Object.entries(teamCounts).sort((a,b) => b[1]-a[1]).slice(0, 12);
 
     if (teamChart) teamChart.destroy();
     const teamCtx = document.getElementById('teamChart').getContext('2d');
-    teamChart = new Chart(teamCtx, {
-      type: 'bar',
-      data: {
-        labels: teamsSorted.map(([t]) => t),
-        datasets: [{
-          data: teamsSorted.map(([,c]) => c),
-          backgroundColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#1a2030'),
-          borderColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#2a3245'),
-          borderWidth: 1,
-          borderRadius: 4,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: '#4a5568', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
-        }
-      }
-    });
 
-    // Date chart
-    const dateCounts = {};
-    allHRs.forEach(h => {
-      if (!h.date) return;
-      dateCounts[h.date] = (dateCounts[h.date] || 0) + 1;
-    });
-    const datesSorted = Object.entries(dateCounts).sort((a,b) => a[0].localeCompare(b[0]));
+    if (teamsSorted.length === 0) {
+      // Show placeholder message on canvas
+      teamCtx.fillStyle = '#4a5568';
+      teamCtx.font = '13px Barlow, sans-serif';
+      teamCtx.textAlign = 'center';
+      teamCtx.fillText('Waiting for Statcast distance data...', teamCtx.canvas.width / 2, 110);
+    } else {
+      teamChart = new Chart(teamCtx, {
+        type: 'bar',
+        data: {
+          labels: teamsSorted.map(([t]) => t),
+          datasets: [{
+            data: teamsSorted.map(([,c]) => c),
+            backgroundColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#1a2030'),
+            borderColor: teamsSorted.map((_, i) => i === 0 ? '#e8332a' : '#2a3245'),
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#4a5568', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          }
+        }
+      });
+    }
+
+    // Right chart: Most Baja Blasts by player
+    const playerCounts = {};
+    bajaBlasts.forEach(h => { playerCounts[h.player] = (playerCounts[h.player] || 0) + 1; });
+    const playersSorted = Object.entries(playerCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
 
     if (dateChart) dateChart.destroy();
-    const dateCtx = document.getElementById('dateChart').getContext('2d');
-    dateChart = new Chart(dateCtx, {
-      type: 'line',
-      data: {
-        labels: datesSorted.map(([d]) => {
-          try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); }
-          catch { return d; }
-        }),
-        datasets: [{
-          data: datesSorted.map(([,c]) => c),
-          borderColor: '#e8332a',
-          backgroundColor: 'rgba(232,51,42,0.1)',
-          borderWidth: 2,
-          pointBackgroundColor: '#e8332a',
-          pointRadius: 4,
-          fill: true,
-          tension: 0.3,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: '#4a5568', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+    const playerCtx = document.getElementById('dateChart').getContext('2d');
+
+    if (playersSorted.length === 0) {
+      playerCtx.fillStyle = '#4a5568';
+      playerCtx.font = '13px Barlow, sans-serif';
+      playerCtx.textAlign = 'center';
+      playerCtx.fillText('Waiting for Statcast distance data...', playerCtx.canvas.width / 2, 110);
+    } else {
+      dateChart = new Chart(playerCtx, {
+        type: 'bar',
+        indexAxis: 'y',
+        data: {
+          labels: playersSorted.map(([p]) => p.split(' ').pop()), // last name only
+          datasets: [{
+            data: playersSorted.map(([,c]) => c),
+            backgroundColor: playersSorted.map((_, i) => i === 0 ? '#e8332a' : '#1a2030'),
+            borderColor: playersSorted.map((_, i) => i === 0 ? '#e8332a' : '#2a3245'),
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#4a5568', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { ticks: { color: '#8892a4', font: { size: 12 } }, grid: { display: false } }
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
