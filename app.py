@@ -128,10 +128,11 @@ def fetch_mlb_homeruns_for_game(game):
 
 def fetch_savant_game_feed(game_pk):
     """
-    Pull Statcast distance from Savant game feed.
-    The feed has home_batters and away_batters dicts keyed by player_id.
-    Each player has a list of plate appearance objects.
-    Returns lookup: batter_id -> list of {distance, exit_velocity, launch_angle, inning}
+    Parse Savant game feed pitch-by-pitch data.
+    Each batter has a list of pitch dicts. The HOME RUN pitch is the one
+    where events == 'home_run'. That pitch contains hit_distance_sc,
+    launch_speed, launch_angle.
+    Returns: {batter_id: [{distance, exit_velocity, launch_angle, inning}]}
     """
     url = f"https://baseballsavant.mlb.com/gf?game_pk={game_pk}"
     try:
@@ -140,39 +141,66 @@ def fetch_savant_game_feed(game_pk):
             return {}
         data = resp.json()
 
-        lookup = {}  # batter_id -> list of PA dicts with distance
+        lookup = {}  # str(batter_id) -> list of HR pitch dicts
 
         for side in ["home_batters", "away_batters"]:
             batters = data.get(side, {})
             if not isinstance(batters, dict):
                 continue
-            for player_id, pa_list in batters.items():
-                if not isinstance(pa_list, list):
+            for player_id, pitches in batters.items():
+                if not isinstance(pitches, list):
                     continue
-                for pa in pa_list:
-                    if not isinstance(pa, dict):
+                for pitch in pitches:
+                    if not isinstance(pitch, dict):
                         continue
-                    # Check if this PA was a home run
-                    result = str(pa.get("result", "")).lower()
-                    events = str(pa.get("events", "")).lower()
-                    if "home_run" not in result and "home_run" not in events and "home run" not in result:
+                    # Home run pitch has events == "home_run"
+                    events = str(pitch.get("events", "")).lower()
+                    if events != "home_run":
                         continue
 
-                    dist = pa.get("hit_distance_sc") or pa.get("hit_distance") or pa.get("total_distance")
-                    ev = pa.get("launch_speed") or pa.get("exit_velocity")
-                    la = pa.get("launch_angle")
-                    inning = str(pa.get("inning", ""))
+                    # Try all possible distance field names
+                    dist = None
+                    for field in ["hit_distance_sc", "hit_distance", "total_distance", "batted_distance"]:
+                        val = pitch.get(field)
+                        if val is not None and str(val) not in ("", "null", "nan"):
+                            try:
+                                dist = int(float(val))
+                                break
+                            except (ValueError, TypeError):
+                                continue
+
+                    ev = None
+                    for field in ["launch_speed", "exit_velocity", "hit_speed"]:
+                        val = pitch.get(field)
+                        if val is not None and str(val) not in ("", "null", "nan"):
+                            try:
+                                ev = round(float(val), 1)
+                                break
+                            except (ValueError, TypeError):
+                                continue
+
+                    la = None
+                    val = pitch.get("launch_angle")
+                    if val is not None and str(val) not in ("", "null", "nan"):
+                        try:
+                            la = round(float(val), 1)
+                        except (ValueError, TypeError):
+                            pass
+
+                    inning = str(pitch.get("inning", ""))
 
                     if player_id not in lookup:
                         lookup[player_id] = []
                     lookup[player_id].append({
-                        "distance": int(float(dist)) if dist else None,
-                        "exit_velocity": round(float(ev), 1) if ev else None,
-                        "launch_angle": round(float(la), 1) if la else None,
+                        "distance": dist,
+                        "exit_velocity": ev,
+                        "launch_angle": la,
                         "inning": inning,
+                        "all_keys": list(pitch.keys()),  # for debugging
                     })
 
-        logger.info(f"Savant game feed {game_pk}: {sum(len(v) for v in lookup.values())} HR entries for {len(lookup)} batters")
+        hr_count = sum(len(v) for v in lookup.values())
+        logger.info(f"Savant game feed {game_pk}: {hr_count} HR pitches for {len(lookup)} batters")
         return lookup
 
     except Exception as e:
@@ -195,15 +223,21 @@ def fetch_all_homeruns(season=SEASON):
             savant_lookup = fetch_savant_game_feed(game["gamePk"])
 
             for hr in hrs:
-                if savant_lookup and hr["batter_id"] in savant_lookup:
-                    pas = savant_lookup[hr["batter_id"]]
-                    # Match by inning if multiple HRs
-                    matched = next((p for p in pas if p["inning"] == hr["inning"]), pas[0] if pas else None)
-                    if matched and matched.get("distance"):
-                        hr["distance"] = matched["distance"]
-                        hr["exit_velocity"] = matched.get("exit_velocity") or hr["exit_velocity"]
-                        hr["launch_angle"] = matched.get("launch_angle") or hr["launch_angle"]
-                        hr["source"] = "Statcast (game feed)"
+                bid = hr["batter_id"]
+                if savant_lookup and bid in savant_lookup:
+                    pas = savant_lookup[bid]
+                    matched = next(
+                        (p for p in pas if p["inning"] == hr["inning"]),
+                        pas[0] if pas else None
+                    )
+                    if matched:
+                        if matched.get("distance"):
+                            hr["distance"] = matched["distance"]
+                            hr["source"] = "Statcast (game feed)"
+                        if matched.get("exit_velocity"):
+                            hr["exit_velocity"] = matched["exit_velocity"]
+                        if matched.get("launch_angle"):
+                            hr["launch_angle"] = matched["launch_angle"]
 
                 all_hrs.append(hr)
 
@@ -262,30 +296,41 @@ def debug():
     except Exception as e:
         result["mlb_api"] = {"error": str(e)}
 
-    # Savant game feed — show raw batter data structure for one game
+    # Savant game feed — find a home_run pitch and show its keys
     first_pk = result.get("mlb_api", {}).get("sample_game_pk")
     if first_pk:
         try:
             url = f"https://baseballsavant.mlb.com/gf?game_pk={first_pk}"
             resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
             data = resp.json()
-            home_batters = data.get("home_batters", {})
-            # Get first batter's first PA as sample
-            sample_pa = None
-            sample_player_id = None
-            for pid, pas in home_batters.items():
-                if isinstance(pas, list) and pas:
-                    sample_player_id = pid
-                    sample_pa = pas[0]
+
+            # Find the first home_run pitch across all batters
+            hr_pitch = None
+            hr_player_id = None
+            for side in ["home_batters", "away_batters"]:
+                batters = data.get(side, {})
+                if not isinstance(batters, dict):
+                    continue
+                for pid, pitches in batters.items():
+                    if not isinstance(pitches, list):
+                        continue
+                    for pitch in pitches:
+                        if isinstance(pitch, dict) and str(pitch.get("events", "")).lower() == "home_run":
+                            hr_pitch = pitch
+                            hr_player_id = pid
+                            break
+                    if hr_pitch:
+                        break
+                if hr_pitch:
                     break
+
             result["savant_game_feed"] = {
                 "status": resp.status_code,
                 "game_pk": first_pk,
-                "top_level_keys": list(data.keys()),
-                "home_batter_count": len(home_batters),
-                "sample_player_id": sample_player_id,
-                "sample_pa_keys": list(sample_pa.keys()) if sample_pa else [],
-                "sample_pa": {k: sample_pa[k] for k in list(sample_pa.keys())[:15]} if sample_pa else {},
+                "hr_pitch_found": hr_pitch is not None,
+                "hr_player_id": hr_player_id,
+                "hr_pitch_keys": list(hr_pitch.keys()) if hr_pitch else [],
+                "hr_pitch_data": hr_pitch if hr_pitch else {},
             }
         except Exception as e:
             result["savant_game_feed"] = {"error": str(e)}
