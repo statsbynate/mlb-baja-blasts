@@ -479,7 +479,8 @@
     <select class="filter-select" id="date-filter" onchange="renderTable()">
       <option value="">All dates</option>
     </select>
-    <select class="filter-select" id="sort-select" onchange="renderTable()">
+     <select class="filter-select" id="sort-select" onchange="renderTable()">
+      <option value="baja-first">Baja Blasts first</option>
       <option value="date-desc">Date (newest first)</option>
       <option value="date-asc">Date (oldest first)</option>
       <option value="dist-desc">Distance (longest first)</option>
@@ -710,7 +711,13 @@
       return true;
     });
 
-    rows.sort((a,b) => {
+   rows.sort((a,b) => {
+      if (sort === 'baja-first') {
+        const aIsBaja = a.distance && a.distance >= 420 ? 1 : 0;
+        const bIsBaja = b.distance && b.distance >= 420 ? 1 : 0;
+        if (bIsBaja !== aIsBaja) return bIsBaja - aIsBaja;
+        return (b.distance||0) - (a.distance||0);
+      }
       if (sort === 'dist-desc') return (b.distance||0) - (a.distance||0);
       if (sort === 'date-desc') return (b.date||'').localeCompare(a.date||'');
       if (sort === 'date-asc')  return (a.date||'').localeCompare(b.date||'');
