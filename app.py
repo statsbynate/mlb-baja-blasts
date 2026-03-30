@@ -21,48 +21,41 @@ SEASON = "2026"
 SEASON_START = "2026-03-26"
 MIN_DISTANCE = 420
 
-HEADERS = {
+MLB_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/123.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "identity",
+    "Accept": "application/json",
+}
+
+SAVANT_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/123.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/javascript, */*",
+    "Referer": "https://baseballsavant.mlb.com/",
 }
 
 TEAM_ABBREVS = {
-    "Arizona Diamondbacks": "ARI",
-    "Atlanta Braves": "ATL",
-    "Baltimore Orioles": "BAL",
-    "Boston Red Sox": "BOS",
-    "Chicago Cubs": "CHC",
-    "Chicago White Sox": "CWS",
-    "Cincinnati Reds": "CIN",
-    "Cleveland Guardians": "CLE",
-    "Colorado Rockies": "COL",
-    "Detroit Tigers": "DET",
-    "Houston Astros": "HOU",
-    "Kansas City Royals": "KC",
-    "Los Angeles Angels": "LAA",
-    "Los Angeles Dodgers": "LAD",
-    "Miami Marlins": "MIA",
-    "Milwaukee Brewers": "MIL",
-    "Minnesota Twins": "MIN",
-    "New York Mets": "NYM",
-    "New York Yankees": "NYY",
-    "Oakland Athletics": "OAK",
-    "Philadelphia Phillies": "PHI",
-    "Pittsburgh Pirates": "PIT",
-    "San Diego Padres": "SD",
-    "San Francisco Giants": "SF",
-    "Seattle Mariners": "SEA",
-    "St. Louis Cardinals": "STL",
-    "Tampa Bay Rays": "TB",
-    "Texas Rangers": "TEX",
-    "Toronto Blue Jays": "TOR",
-    "Washington Nationals": "WSH",
+    "Arizona Diamondbacks": "ARI", "Atlanta Braves": "ATL",
+    "Baltimore Orioles": "BAL", "Boston Red Sox": "BOS",
+    "Chicago Cubs": "CHC", "Chicago White Sox": "CWS",
+    "Cincinnati Reds": "CIN", "Cleveland Guardians": "CLE",
+    "Colorado Rockies": "COL", "Detroit Tigers": "DET",
+    "Houston Astros": "HOU", "Kansas City Royals": "KC",
+    "Los Angeles Angels": "LAA", "Los Angeles Dodgers": "LAD",
+    "Miami Marlins": "MIA", "Milwaukee Brewers": "MIL",
+    "Minnesota Twins": "MIN", "New York Mets": "NYM",
+    "New York Yankees": "NYY", "Oakland Athletics": "OAK",
+    "Philadelphia Phillies": "PHI", "Pittsburgh Pirates": "PIT",
+    "San Diego Padres": "SD", "San Francisco Giants": "SF",
+    "Seattle Mariners": "SEA", "St. Louis Cardinals": "STL",
+    "Tampa Bay Rays": "TB", "Texas Rangers": "TEX",
+    "Toronto Blue Jays": "TOR", "Washington Nationals": "WSH",
     "Athletics": "OAK",
 }
 
@@ -85,260 +78,180 @@ def team_abbrev(team_dict):
     return TEAM_ABBREVS.get(name, name[:3].upper() if name else "—")
 
 
-def get_distance(row):
-    """Try multiple field names for HR distance."""
-    for field in ["hit_distance_sc", "hit_distance", "total_distance"]:
-        val = row.get(field, "").strip()
-        if val and val != "null":
-            try:
-                return int(float(val))
-            except ValueError:
-                continue
-    return None
-
-
 # ---------------------------------------------------------------------------
-# Source 1: MLB Stats API
+# Source 1: MLB Stats API — schedule + play-by-play
 # ---------------------------------------------------------------------------
 
-def fetch_mlb_homeruns(season=SEASON):
-    schedule_url = (
-        f"https://statsapi.mlb.com/api/v1/schedule"
-        f"?sportId=1&season={season}&gameType=R"
-    )
-    logger.info(f"Fetching schedule: {schedule_url}")
-    sched_resp = requests.get(schedule_url, headers={"User-Agent": HEADERS["User-Agent"]}, timeout=30)
-    sched_resp.raise_for_status()
-    sched_data = sched_resp.json()
+def fetch_final_games(season=SEASON):
+    """Return list of final game dicts with gamePk, gameDate, home, away."""
+    url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={season}&gameType=R"
+    resp = requests.get(url, headers=MLB_HEADERS, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
 
-    game_pks = []
-    for date_entry in sched_data.get("dates", []):
+    games = []
+    for date_entry in data.get("dates", []):
         game_date = date_entry.get("date", "")
         for game in date_entry.get("games", []):
             state = safe_get(game, "status", "abstractGameState")
             if state != "Final":
                 continue
-            home_team_dict = safe_get(game, "teams", "home", "team", default={})
-            away_team_dict = safe_get(game, "teams", "away", "team", default={})
-            game_pks.append({
-                "gamePk": game["gamePk"],
+            home_dict = safe_get(game, "teams", "home", "team", default={})
+            away_dict = safe_get(game, "teams", "away", "team", default={})
+            games.append({
+                "gamePk": str(game["gamePk"]),
                 "gameDate": game_date,
-                "home": team_abbrev(home_team_dict),
-                "away": team_abbrev(away_team_dict),
+                "home": team_abbrev(home_dict),
+                "away": team_abbrev(away_dict),
             })
 
-    logger.info(f"Found {len(game_pks)} final games in {season}")
-    if not game_pks:
+    logger.info(f"Found {len(games)} final games")
+    return games
+
+
+def fetch_mlb_homeruns_for_game(game):
+    """Pull home runs from MLB live feed for one game."""
+    url = f"https://statsapi.mlb.com/api/v1.1/game/{game['gamePk']}/feed/live"
+    resp = requests.get(url, headers=MLB_HEADERS, timeout=20)
+    if resp.status_code != 200:
         return []
 
-    all_hrs = []
-    for game in game_pks:
-        try:
-            feed_url = f"https://statsapi.mlb.com/api/v1.1/game/{game['gamePk']}/feed/live"
-            resp = requests.get(feed_url, headers={"User-Agent": HEADERS["User-Agent"]}, timeout=20)
-            if resp.status_code != 200:
-                continue
-            feed = resp.json()
-
-            plays = feed.get("liveData", {}).get("plays", {}).get("allPlays", [])
-            for play in plays:
-                event = safe_get(play, "result", "event")
-                if event.lower() != "home run":
-                    continue
-
-                hit_data = play.get("hitData", {})
-                distance = hit_data.get("totalDistance")
-                launch_speed = hit_data.get("launchSpeed")
-                launch_angle = hit_data.get("launchAngle")
-
-                batter_name = safe_get(play, "matchup", "batter", "fullName") or "Unknown"
-                inning = safe_get(play, "about", "inning")
-                half = safe_get(play, "about", "halfInning")
-
-                if half == "top":
-                    team = game["away"]
-                    opponent = game["home"]
-                else:
-                    team = game["home"]
-                    opponent = game["away"]
-
-                all_hrs.append({
-                    "player": batter_name,
-                    "team": team,
-                    "opponent": opponent,
-                    "distance": int(distance) if distance is not None else None,
-                    "exit_velocity": round(float(launch_speed), 1) if launch_speed is not None else None,
-                    "launch_angle": round(float(launch_angle), 1) if launch_angle is not None else None,
-                    "date": game.get("gameDate", ""),
-                    "inning": str(inning),
-                    "game_pk": str(game["gamePk"]),
-                    "source": "MLB Stats API",
-                })
-
-        except Exception as e:
-            logger.warning(f"Error fetching game {game['gamePk']}: {e}")
+    feed = resp.json()
+    plays = feed.get("liveData", {}).get("plays", {}).get("allPlays", [])
+    hrs = []
+    for play in plays:
+        event = safe_get(play, "result", "event")
+        if event.lower() != "home run":
             continue
 
-    logger.info(f"Total HRs from MLB API: {len(all_hrs)}")
-    return all_hrs
+        hit_data = play.get("hitData", {})
+        distance = hit_data.get("totalDistance")
+        launch_speed = hit_data.get("launchSpeed")
+        launch_angle = hit_data.get("launchAngle")
+        batter_name = safe_get(play, "matchup", "batter", "fullName") or "Unknown"
+        batter_id = safe_get(play, "matchup", "batter", "id")
+        inning = safe_get(play, "about", "inning")
+        half = safe_get(play, "about", "halfInning")
+
+        team = game["away"] if half == "top" else game["home"]
+        opponent = game["home"] if half == "top" else game["away"]
+
+        hrs.append({
+            "player": batter_name,
+            "batter_id": str(batter_id),
+            "team": team,
+            "opponent": opponent,
+            "distance": int(distance) if distance is not None else None,
+            "exit_velocity": round(float(launch_speed), 1) if launch_speed is not None else None,
+            "launch_angle": round(float(launch_angle), 1) if launch_angle is not None else None,
+            "date": game["gameDate"],
+            "inning": str(inning),
+            "game_pk": game["gamePk"],
+            "source": "MLB Stats API",
+        })
+    return hrs
 
 
 # ---------------------------------------------------------------------------
-# Source 2: Baseball Savant CSV (with fixed encoding)
+# Source 2: Savant Game Feed — distance enrichment per game
 # ---------------------------------------------------------------------------
 
-def fetch_savant_distances(season=SEASON):
-    url = (
-        "https://baseballsavant.mlb.com/statcast_search/csv"
-        "?type=batter"
-        "&hfAB=home__run%7C"
-        "&hfGT=R%7C"
-        f"&hfSea={season}%7C"
-        "&player_type=batter"
-        "&min_pitches=0&min_results=0"
-        "&group_by=name-event"
-        "&sort_col=hit_distance_sc"
-        "&sort_order=desc"
-        "&min_abs=0&type=details"
-    )
-    savant_headers = {
-        **HEADERS,
-        "Referer": "https://baseballsavant.mlb.com/",
-        "Accept": "text/csv,text/html,*/*",
-    }
-    resp = requests.get(url, headers=savant_headers, timeout=30)
-    resp.raise_for_status()
-
-    # Handle BOM and encoding explicitly
-    raw = resp.content.decode("utf-8-sig", errors="replace")
-    logger.info(f"Savant CSV length: {len(raw)}, first 100: {raw[:100]}")
-
-    reader = csv.DictReader(io.StringIO(raw))
-    lookup = {}
-    row_count = 0
-    for row in reader:
-        row_count += 1
-        try:
-            dist = get_distance(row)
-            if dist is None:
-                continue
-
-            name = row.get("player_name", "").strip()
-            date = row.get("game_date", "").strip()
-
-            ev_raw = row.get("launch_speed", "").strip()
-            ev = round(float(ev_raw), 1) if ev_raw and ev_raw != "null" else None
-
-            la_raw = row.get("launch_angle", "").strip()
-            la = round(float(la_raw), 1) if la_raw and la_raw != "null" else None
-
-            key = (name, date)
-            if key not in lookup:
-                lookup[key] = {"distance": dist, "exit_velocity": ev, "launch_angle": la}
-
-        except (ValueError, KeyError) as e:
-            logger.debug(f"Row parse error: {e}")
-            continue
-
-    logger.info(f"Savant: {row_count} rows parsed, {len(lookup)} HR entries found")
-    return lookup
-
-
-# ---------------------------------------------------------------------------
-# Source 3: pybaseball
-# ---------------------------------------------------------------------------
-
-def fetch_pybaseball_distances(start_date=SEASON_START):
+def fetch_savant_game_feed(game_pk):
+    """
+    Pull Statcast data from Savant's game feed endpoint.
+    Returns dict keyed by (player_name, inning) -> {distance, exit_velocity, launch_angle}
+    """
+    url = f"https://baseballsavant.mlb.com/gf?game_pk={game_pk}"
     try:
-        import pybaseball
-        pybaseball.cache.enable()
-        today = datetime.today().strftime("%Y-%m-%d")
-        logger.info(f"Fetching pybaseball statcast {start_date} to {today}")
-        data = pybaseball.statcast(start_dt=start_date, end_dt=today)
-        if data is None or data.empty:
-            logger.info("pybaseball returned no data")
+        resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            logger.warning(f"Savant game feed {game_pk}: status {resp.status_code}")
             return {}
 
-        hrs = data[data["events"] == "home_run"]
+        data = resp.json()
         lookup = {}
-        for _, row in hrs.iterrows():
-            try:
-                dist = None
-                for field in ["hit_distance_sc", "hit_distance"]:
-                    val = row.get(field)
-                    if val is not None and str(val) != "nan":
-                        dist = int(float(val))
-                        break
-                if dist is None:
+
+        # Game feed has home/away team data
+        for side in ["home", "away"]:
+            team_data = data.get(f"team_{side}", {})
+            for player_id, events in team_data.items():
+                if not isinstance(events, list):
                     continue
+                for event in events:
+                    if not isinstance(event, dict):
+                        continue
+                    result = event.get("result", "")
+                    if "home_run" not in str(result).lower() and "home run" not in str(result).lower():
+                        # also check play_id or type fields
+                        if event.get("type") != "X" and "home_run" not in str(event.get("pitch_type", "")):
+                            if str(event.get("events", "")).lower() != "home_run":
+                                continue
 
-                name = str(row.get("player_name", "")).strip()
-                date = str(row.get("game_date", ""))[:10]
-                ev = row.get("launch_speed")
-                la = row.get("launch_angle")
-                key = (name, date)
-                if key not in lookup:
-                    lookup[key] = {
-                        "distance": dist,
-                        "exit_velocity": round(float(ev), 1) if ev and str(ev) != "nan" else None,
-                        "launch_angle": round(float(la), 1) if la and str(la) != "nan" else None,
-                    }
-            except Exception:
-                continue
+                    dist = event.get("hit_distance_sc") or event.get("hit_distance")
+                    ev = event.get("launch_speed")
+                    la = event.get("launch_angle")
+                    name = event.get("batter_name", "")
+                    inning = str(event.get("inning", ""))
 
-        logger.info(f"pybaseball HR entries: {len(lookup)}")
+                    if dist:
+                        key = (name, inning)
+                        lookup[key] = {
+                            "distance": int(float(dist)),
+                            "exit_velocity": round(float(ev), 1) if ev else None,
+                            "launch_angle": round(float(la), 1) if la else None,
+                        }
+
+        logger.info(f"Savant game feed {game_pk}: {len(lookup)} HR entries")
         return lookup
 
     except Exception as e:
-        logger.warning(f"pybaseball fetch failed (non-fatal): {e}")
+        logger.warning(f"Savant game feed {game_pk} error: {e}")
         return {}
 
 
 # ---------------------------------------------------------------------------
-# Combined
+# Combine everything
 # ---------------------------------------------------------------------------
 
 def fetch_all_homeruns(season=SEASON):
-    mlb_hrs = fetch_mlb_homeruns(season)
+    games = fetch_final_games(season)
+    if not games:
+        return []
 
-    distance_lookup = {}
-
-    # Try pybaseball first
-    try:
-        distance_lookup = fetch_pybaseball_distances()
-        logger.info(f"pybaseball returned {len(distance_lookup)} entries")
-    except Exception as e:
-        logger.warning(f"pybaseball failed: {e}")
-
-    # Fall back to Savant if pybaseball empty
-    if not distance_lookup:
+    all_hrs = []
+    for game in games:
         try:
-            distance_lookup = fetch_savant_distances(season)
-            logger.info(f"Savant returned {len(distance_lookup)} entries")
+            # Get HR list from MLB API
+            hrs = fetch_mlb_homeruns_for_game(game)
+            if not hrs:
+                continue
+
+            # Try to enrich with Savant game feed distance
+            savant_lookup = fetch_savant_game_feed(game["gamePk"])
+
+            for hr in hrs:
+                if savant_lookup:
+                    key = (hr["player"], hr["inning"])
+                    enriched = savant_lookup.get(key)
+                    if enriched and enriched.get("distance"):
+                        hr["distance"] = enriched["distance"]
+                        hr["exit_velocity"] = enriched.get("exit_velocity") or hr["exit_velocity"]
+                        hr["launch_angle"] = enriched.get("launch_angle") or hr["launch_angle"]
+                        hr["source"] = "Statcast (game feed)"
+
+                all_hrs.append(hr)
+
         except Exception as e:
-            logger.warning(f"Savant fallback failed: {e}")
+            logger.warning(f"Error processing game {game['gamePk']}: {e}")
+            continue
 
-    results = []
-    for hr in mlb_hrs:
-        key = (hr["player"], hr.get("date", ""))
-        enriched = distance_lookup.get(key)
-        if enriched:
-            hr["distance"] = enriched["distance"]
-            hr["exit_velocity"] = enriched["exit_velocity"] or hr["exit_velocity"]
-            hr["launch_angle"] = enriched["launch_angle"] or hr["launch_angle"]
-            hr["source"] = "Statcast"
+    logger.info(f"Total HRs collected: {len(all_hrs)}")
 
-        dist = hr.get("distance")
-        if dist is not None and dist >= MIN_DISTANCE:
-            results.append(hr)
-        elif dist is None:
-            hr["source"] = "MLB Stats API (distance pending)"
-            results.append(hr)
+    # Split into known distance (420+) and pending
+    known = [h for h in all_hrs if h.get("distance") and h["distance"] >= MIN_DISTANCE]
+    unknown = [h for h in all_hrs if not h.get("distance")]
 
-    known = [h for h in results if h.get("distance") is not None and h["distance"] >= MIN_DISTANCE]
-    unknown = [h for h in results if h.get("distance") is None]
     known.sort(key=lambda x: x["distance"], reverse=True)
-
     return known + unknown
 
 
@@ -385,50 +298,72 @@ def homeruns():
 def debug():
     result = {}
 
-    # MLB API
+    # MLB API check
     try:
         url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={SEASON}&gameType=R"
-        resp = requests.get(url, headers={"User-Agent": HEADERS["User-Agent"]}, timeout=15)
+        resp = requests.get(url, headers=MLB_HEADERS, timeout=15)
         data = resp.json()
-        total_games = sum(len(d.get("games", [])) for d in data.get("dates", []))
-        final_games = sum(
+        total = sum(len(d.get("games", [])) for d in data.get("dates", []))
+        final = sum(
             1 for d in data.get("dates", [])
             for g in d.get("games", [])
             if safe_get(g, "status", "abstractGameState") == "Final"
         )
-        result["mlb_api"] = {"status": resp.status_code, "total_games": total_games, "final_games": final_games}
+        # Get first final game pk for savant test
+        first_pk = None
+        for d in data.get("dates", []):
+            for g in d.get("games", []):
+                if safe_get(g, "status", "abstractGameState") == "Final":
+                    first_pk = str(g["gamePk"])
+                    break
+            if first_pk:
+                break
+
+        result["mlb_api"] = {
+            "status": resp.status_code,
+            "total_games": total,
+            "final_games": final,
+            "sample_game_pk": first_pk,
+        }
     except Exception as e:
         result["mlb_api"] = {"error": str(e)}
 
-    # Savant — show first data row so we can see field names
+    # Savant game feed check using first final game
+    first_pk = result.get("mlb_api", {}).get("sample_game_pk")
+    if first_pk:
+        try:
+            url = f"https://baseballsavant.mlb.com/gf?game_pk={first_pk}"
+            resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
+            body = resp.text[:500] if resp.status_code == 200 else ""
+            keys = list(resp.json().keys()) if resp.status_code == 200 else []
+            result["savant_game_feed"] = {
+                "status": resp.status_code,
+                "game_pk": first_pk,
+                "top_level_keys": keys,
+                "preview": body[:300],
+            }
+        except Exception as e:
+            result["savant_game_feed"] = {"error": str(e)}
+
+    # Savant CSV check
     try:
-        savant_url = (
+        csv_url = (
             "https://baseballsavant.mlb.com/statcast_search/csv"
             f"?type=batter&hfAB=home__run%7C&hfGT=R%7C&hfSea={SEASON}%7C"
             "&player_type=batter&min_pitches=0&min_results=0"
             "&group_by=name-event&sort_col=hit_distance_sc"
             "&sort_order=desc&min_abs=0&type=details"
         )
-        savant_headers = {**HEADERS, "Referer": "https://baseballsavant.mlb.com/", "Accept": "text/csv,*/*"}
-        resp = requests.get(savant_url, headers=savant_headers, timeout=15)
+        resp = requests.get(csv_url, headers={**SAVANT_HEADERS, "Accept": "text/csv"}, timeout=15)
         raw = resp.content.decode("utf-8-sig", errors="replace")
         lines = raw.strip().split("\n")
-        result["savant"] = {
+        result["savant_csv"] = {
             "status": resp.status_code,
             "line_count": len(lines),
             "has_data": len(lines) > 1,
-            "first_data_row": lines[1][:300] if len(lines) > 1 else "",
-            "headers": lines[0][:300] if lines else "",
         }
     except Exception as e:
-        result["savant"] = {"error": str(e)}
-
-    # pybaseball
-    try:
-        import pybaseball
-        result["pybaseball"] = {"available": True}
-    except ImportError:
-        result["pybaseball"] = {"available": False}
+        result["savant_csv"] = {"error": str(e)}
 
     return jsonify(result)
 
