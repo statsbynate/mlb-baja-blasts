@@ -707,10 +707,14 @@
     const dateFilter = document.getElementById('date-filter').value;
     const sort = document.getElementById('sort-select').value;
 
+    const blastFilter = document.getElementById('blast-filter').value;
+
     let rows = allHRs.filter(h => {
       if (search && !h.player.toLowerCase().includes(search) && !h.team.toLowerCase().includes(search)) return false;
       if (teamFilter && h.team !== teamFilter) return false;
       if (dateFilter && h.date !== dateFilter) return false;
+      if (blastFilter === 'baja' && !(h.distance && h.distance >= 420)) return false;
+      if (blastFilter === 'pending' && h.distance !== null) return false;
       return true;
     });
 
