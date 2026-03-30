@@ -479,11 +479,6 @@
     <select class="filter-select" id="date-filter" onchange="renderTable()">
       <option value="">All dates</option>
     </select>
-    <select class="filter-select" id="blast-filter" onchange="renderTable()">
-      <option value="">All home runs</option>
-      <option value="baja">Baja Blasts only (420+ ft)</option>
-      <option value="pending">Distance pending</option>
-    </select>
     <select class="filter-select" id="sort-select" onchange="renderTable()">
       <option value="date-desc">Date (newest first)</option>
       <option value="date-asc">Date (oldest first)</option>
@@ -504,7 +499,7 @@
     <table>
       <thead>
         <tr>
-         <th>#</th>
+          <th>#</th>
           <th>Player</th>
           <th>Team</th>
           <th>Distance</th>
@@ -512,11 +507,12 @@
           <th>Launch angle</th>
           <th>Date</th>
           <th>Opp</th>
+          <th>Inn</th>
           <th></th>
         </tr>
       </thead>
       <tbody id="hr-tbody">
-        <tr><td colspan="9" class="empty-state">Connect your backend to load live data.</td></tr>
+        <tr><td colspan="10" class="empty-state">Connect your backend to load live data.</td></tr>
       </tbody>
     </table>
   </div>
@@ -707,14 +703,10 @@
     const dateFilter = document.getElementById('date-filter').value;
     const sort = document.getElementById('sort-select').value;
 
-    const blastFilter = document.getElementById('blast-filter').value;
-
     let rows = allHRs.filter(h => {
       if (search && !h.player.toLowerCase().includes(search) && !h.team.toLowerCase().includes(search)) return false;
       if (teamFilter && h.team !== teamFilter) return false;
       if (dateFilter && h.date !== dateFilter) return false;
-      if (blastFilter === 'baja' && !(h.distance && h.distance >= 420)) return false;
-      if (blastFilter === 'pending' && h.distance !== null) return false;
       return true;
     });
 
@@ -732,7 +724,7 @@
 
     const tbody = document.getElementById('hr-tbody');
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No results match your filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No results match your filters.</td></tr>';
       return;
     }
 
@@ -770,6 +762,7 @@
         <td style="color:var(--text2);font-size:13px;">${la}</td>
         <td style="color:var(--text2);font-size:13px;">${dateStr}</td>
         <td><span class="team-chip">${h.opponent||'—'}</span></td>
+        <td style="color:var(--text3);font-size:12px;">${h.inning||'—'}</td>
         <td><a href="${tweetUrl}" target="_blank" class="tweet-btn">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
           Tweet
@@ -819,8 +812,8 @@
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1 }, grid: { color: gridColor } },
-            y: { ticks: { color: labelColor, font: { size: 12 } }, grid: { display: false } }
+            x: { ticks: { color: tickColor, font: { size: 11 } }, grid: { color: gridColor } },
+            y: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1, precision: 0 }, grid: { color: gridColor } }
           }
         }
       });
@@ -856,8 +849,8 @@
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-          x: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1, precision: 0 }, grid: { color: gridColor } },
-          y: { ticks: { color: labelColor, font: { size: 12 } }, grid: { display: false } }
+            x: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1, precision: 0 }, grid: { color: gridColor } },
+            y: { ticks: { color: labelColor, font: { size: 12 } }, grid: { display: false } }
           }
         }
       });
