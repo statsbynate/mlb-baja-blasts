@@ -155,7 +155,7 @@ def fetch_savant_game_feed(game_pk):
                         continue
                     # Home run pitch has events == "home_run"
                     events = str(pitch.get("events", "")).lower()
-                    if events != "home_run":
+                    if events != "home run":
                         continue
 
                     # Try all possible distance field names
@@ -312,13 +312,9 @@ def debug():
             resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
             data = resp.json()
 
-            # Collect ALL unique events values and sample pitches
-            all_events = set()
-            all_results = set()
-            all_types = set()
+            # Find first Home Run pitch and show all its fields
             hr_pitch = None
             hr_player_id = None
-            sample_pitches = []
 
             for side in ["home_batters", "away_batters"]:
                 batters = data.get(side, {})
@@ -328,29 +324,22 @@ def debug():
                     if not isinstance(pitches, list):
                         continue
                     for pitch in pitches:
-                        if not isinstance(pitch, dict):
-                            continue
-                        ev = pitch.get("events")
-                        res = pitch.get("result")
-                        tp = pitch.get("type")
-                        if ev:
-                            all_events.add(str(ev))
-                        if res:
-                            all_results.add(str(res))
-                        if tp:
-                            all_types.add(str(tp))
-                        # Grab first 3 pitches as samples
-                        if len(sample_pitches) < 3:
-                            sample_pitches.append({k: pitch[k] for k in ["events", "result", "type", "inning", "batter_name"] if k in pitch})
+                        if isinstance(pitch, dict) and str(pitch.get("events", "")).lower() == "home run":
+                            hr_pitch = pitch
+                            hr_player_id = pid
+                            break
+                    if hr_pitch:
+                        break
+                if hr_pitch:
+                    break
 
             result["savant_game_feed"] = {
                 "status": resp.status_code,
                 "game_pk": first_pk,
-                "unique_events_values": sorted(list(all_events)),
-                "unique_result_values": sorted(list(all_results))[:20],
-                "unique_type_values": sorted(list(all_types)),
-                "sample_pitches": sample_pitches,
                 "hr_pitch_found": hr_pitch is not None,
+                "hr_player_id": hr_player_id,
+                "hr_pitch_keys": list(hr_pitch.keys()) if hr_pitch else [],
+                "hr_pitch_data": hr_pitch if hr_pitch else {},
             }
         except Exception as e:
             result["savant_game_feed"] = {"error": str(e)}
