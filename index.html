@@ -479,6 +479,11 @@
     <select class="filter-select" id="date-filter" onchange="renderTable()">
       <option value="">All dates</option>
     </select>
+    <select class="filter-select" id="blast-filter" onchange="renderTable()">
+      <option value="">All home runs</option>
+      <option value="baja">Baja Blasts only (420+ ft)</option>
+      <option value="pending">Distance pending</option>
+    </select>
     <select class="filter-select" id="sort-select" onchange="renderTable()">
       <option value="date-desc">Date (newest first)</option>
       <option value="date-asc">Date (oldest first)</option>
@@ -810,8 +815,8 @@
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: tickColor, font: { size: 11 } }, grid: { color: gridColor } },
-            y: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1 }, grid: { color: gridColor } }
+            x: { ticks: { color: tickColor, font: { size: 11 }, stepSize: 1 }, grid: { color: gridColor } },
+            y: { ticks: { color: labelColor, font: { size: 12 } }, grid: { display: false } }
           }
         }
       });
