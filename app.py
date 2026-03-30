@@ -133,7 +133,61 @@ def fetch_homeruns_for_game(game):
 # Baseball Savant CSV — distance enrichment (when available)
 # ---------------------------------------------------------------------------
 
+def fetch_savant_game_distances(game_pk):
+    """
+    Pull distance data from Savant game feed exit_velocity array.
+    This array contains every batted ball with hit_distance, launch_speed,
+    launch_angle, batter_name, and inning — available even when the bulk CSV is empty.
+    Returns: {(batter_name, inning): {distance, exit_velocity, launch_angle}}
+    """
+    url = f"https://baseballsavant.mlb.com/gf?game_pk={game_pk}"
+    try:
+        resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            return {}
+        data = resp.json()
+
+        # exit_velocity is top-level array of ALL batted balls with Statcast data
+        ev_array = data.get("exit_velocity", [])
+        if not isinstance(ev_array, list):
+            return {}
+
+        lookup = {}
+        for play in ev_array:
+            if not isinstance(play, dict):
+                continue
+            # Only home runs
+            if str(play.get("events", "")).lower() != "home run":
+                continue
+            dist_raw = play.get("hit_distance")
+            if not dist_raw:
+                continue
+            try:
+                dist = int(float(str(dist_raw)))
+                name = str(play.get("batter_name", "")).strip()
+                inning = str(play.get("inning", ""))
+                ev_raw = play.get("hit_speed") or play.get("launch_speed")
+                la_raw = play.get("launch_angle") or play.get("hit_angle")
+                key = (name, inning)
+                if key not in lookup:
+                    lookup[key] = {
+                        "distance": dist,
+                        "exit_velocity": round(float(str(ev_raw)), 1) if ev_raw else None,
+                        "launch_angle": round(float(str(la_raw)), 1) if la_raw else None,
+                    }
+            except (ValueError, TypeError):
+                continue
+
+        logger.info(f"Savant game feed {game_pk}: {len(lookup)} HR distance entries")
+        return lookup
+
+    except Exception as e:
+        logger.warning(f"Savant game feed {game_pk} error: {e}")
+        return {}
+
+
 def fetch_savant_distances(season=SEASON):
+    """Bulk CSV fallback — used when game feed is unavailable."""
     url = (
         "https://baseballsavant.mlb.com/statcast_search/csv"
         "?type=batter&hfAB=home__run%7C&hfGT=R%7C"
@@ -165,7 +219,7 @@ def fetch_savant_distances(season=SEASON):
                 }
         except (ValueError, KeyError):
             continue
-    logger.info(f"Savant: {len(lookup)} HR entries")
+    logger.info(f"Savant CSV: {len(lookup)} HR entries")
     return lookup
 
 
@@ -188,23 +242,25 @@ def fetch_all_homeruns(season=SEASON):
 
     logger.info(f"Total HRs from MLB API: {len(all_hrs)}")
 
-    # Try to enrich with Savant distance data
-    savant_lookup = {}
-    try:
-        savant_lookup = fetch_savant_distances(season)
-    except Exception as e:
-        logger.warning(f"Savant fetch failed (non-fatal): {e}")
+    # Build per-game lookup using Savant game feed (exit_velocity array)
+    # Key: game_pk -> {(batter_name, inning): {distance, exit_velocity, launch_angle}}
+    game_feed_cache = {}
 
     results = []
     for hr in all_hrs:
-        key = (hr["player"], hr.get("date", ""))
-        enriched = savant_lookup.get(key)
-        if enriched:
+        gk = hr["game_pk"]
+        if gk not in game_feed_cache:
+            game_feed_cache[gk] = fetch_savant_game_distances(gk)
+
+        game_lookup = game_feed_cache[gk]
+        key = (hr["player"], hr["inning"])
+        enriched = game_lookup.get(key)
+
+        if enriched and enriched.get("distance"):
             hr["distance"] = enriched["distance"]
             hr["exit_velocity"] = enriched.get("exit_velocity") or hr["exit_velocity"]
             hr["launch_angle"] = enriched.get("launch_angle") or hr["launch_angle"]
-            hr["source"] = "Statcast"
-
+            hr["source"] = "Statcast (game feed)"
         dist = hr.get("distance")
         if dist is not None and dist >= MIN_DISTANCE:
             results.append(hr)
