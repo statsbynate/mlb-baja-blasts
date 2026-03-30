@@ -285,6 +285,44 @@ def debug():
     return jsonify(result)
 
 
+
+@app.route("/api/inspect")
+def inspect():
+    """Temporary: inspect the exit_velocity key and HR pitch fields in Savant game feed."""
+    try:
+        url = "https://baseballsavant.mlb.com/gf?game_pk=823649"
+        resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
+        data = resp.json()
+
+        # Check top-level exit_velocity key
+        ev_top = data.get("exit_velocity")
+
+        # Find first HR pitch and show ALL its fields
+        hr_pitch = None
+        for side in ["home_batters", "away_batters"]:
+            batters = data.get(side, {})
+            if not isinstance(batters, dict):
+                continue
+            for pid, pitches in batters.items():
+                if not isinstance(pitches, list):
+                    continue
+                for pitch in pitches:
+                    if isinstance(pitch, dict) and str(pitch.get("events", "")).lower() == "home run":
+                        hr_pitch = pitch
+                        break
+                if hr_pitch:
+                    break
+            if hr_pitch:
+                break
+
+        return jsonify({
+            "exit_velocity_top_level": ev_top,
+            "hr_pitch_found": hr_pitch is not None,
+            "hr_pitch_all_fields": hr_pitch if hr_pitch else {},
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
