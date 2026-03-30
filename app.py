@@ -261,17 +261,19 @@ def fetch_all_homeruns(season=SEASON):
             hr["exit_velocity"] = enriched.get("exit_velocity") or hr["exit_velocity"]
             hr["launch_angle"] = enriched.get("launch_angle") or hr["launch_angle"]
             hr["source"] = "Statcast (game feed)"
-        dist = hr.get("distance")
-        if dist is not None and dist >= MIN_DISTANCE:
-            results.append(hr)
-        elif dist is None:
+        else:
             hr["source"] = "MLB Stats API (distance pending)"
-            results.append(hr)
 
-    known = [h for h in results if h.get("distance") and h["distance"] >= MIN_DISTANCE]
-    unknown = [h for h in results if not h.get("distance")]
-    known.sort(key=lambda x: x["distance"], reverse=True)
-    return known + unknown
+        # Always include every HR regardless of distance
+        results.append(hr)
+
+    # Sort: Baja Blasts (420+ ft) first, then sub-420 with distance, then pending
+    baja = [h for h in results if h.get("distance") and h["distance"] >= MIN_DISTANCE]
+    sub = [h for h in results if h.get("distance") and h["distance"] < MIN_DISTANCE]
+    pending = [h for h in results if not h.get("distance")]
+    baja.sort(key=lambda x: x["distance"], reverse=True)
+    sub.sort(key=lambda x: x["distance"], reverse=True)
+    return baja + sub + pending
 
 
 # ---------------------------------------------------------------------------
