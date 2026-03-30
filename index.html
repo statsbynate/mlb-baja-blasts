@@ -255,6 +255,18 @@
       color: var(--text); font-size: 13px; font-family: 'Barlow', sans-serif; cursor: pointer;
     }
     .filter-select:focus { outline: none; border-color: var(--accent); }
+    .blast-toggle {
+      padding: 8px 14px; background: transparent;
+      border: 1px solid var(--border2); border-radius: var(--radius);
+      color: var(--text2); font-size: 13px; font-family: "Barlow", sans-serif;
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .blast-toggle:hover { background: var(--bg3); }
+    .blast-toggle.active {
+      background: var(--green-bg); border-color: var(--accent);
+      color: var(--accent); font-weight: 500;
+    }
     .results-count { font-size: 12px; color: var(--text3); }
 
     /* Table */
@@ -479,7 +491,7 @@
     <select class="filter-select" id="date-filter" onchange="renderTable()">
       <option value="">All dates</option>
     </select>
-     <select class="filter-select" id="sort-select" onchange="renderTable()">
+    <select class="filter-select" id="sort-select" onchange="renderTable()">
       <option value="baja-first">Baja Blasts first</option>
       <option value="date-desc">Date (newest first)</option>
       <option value="date-asc">Date (oldest first)</option>
@@ -487,6 +499,7 @@
       <option value="player-asc">Player (A-Z)</option>
       <option value="team-asc">Team (A-Z)</option>
     </select>
+    <button class="blast-toggle" id="blast-toggle" onclick="toggleBlast()">🌊 Baja Blasts only</button>
     <div class="results-count" id="results-count"></div>
     <button class="export-btn" onclick="exportPDF()">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8m-3-3 3 3 3-3M3 13h10"/></svg>
@@ -532,6 +545,7 @@
   const THEME_KEY = 'mlb_hr_theme';
   const REFRESH_INTERVAL = 600;
   let allHRs = [];
+  let bajaOnly = false;
   let countdownTimer = null;
   let secondsLeft = REFRESH_INTERVAL;
   let teamChart = null;
@@ -708,14 +722,15 @@
       if (search && !h.player.toLowerCase().includes(search) && !h.team.toLowerCase().includes(search)) return false;
       if (teamFilter && h.team !== teamFilter) return false;
       if (dateFilter && h.date !== dateFilter) return false;
+      if (bajaOnly && !(h.distance && h.distance >= 420)) return false;
       return true;
     });
 
-   rows.sort((a,b) => {
+    rows.sort((a,b) => {
       if (sort === 'baja-first') {
-        const aIsBaja = a.distance && a.distance >= 420 ? 1 : 0;
-        const bIsBaja = b.distance && b.distance >= 420 ? 1 : 0;
-        if (bIsBaja !== aIsBaja) return bIsBaja - aIsBaja;
+        const aB = a.distance && a.distance >= 420 ? 1 : 0;
+        const bB = b.distance && b.distance >= 420 ? 1 : 0;
+        if (bB !== aB) return bB - aB;
         return (b.distance||0) - (a.distance||0);
       }
       if (sort === 'dist-desc') return (b.distance||0) - (a.distance||0);
@@ -862,6 +877,13 @@
         }
       });
     }
+  }
+
+  // ── Baja toggle
+  function toggleBlast() {
+    bajaOnly = !bajaOnly;
+    document.getElementById("blast-toggle").classList.toggle("active", bajaOnly);
+    renderTable();
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
@@ -1111,9 +1133,16 @@
       if (search && !h.player.toLowerCase().includes(search.toLowerCase()) && !h.team.toLowerCase().includes(search.toLowerCase())) return false;
       if (teamFilter && h.team !== teamFilter) return false;
       if (dateFilter && h.date !== dateFilter) return false;
+      if (bajaOnly && !(h.distance && h.distance >= 420)) return false;
       return true;
     });
     rows.sort((a,b) => {
+      if (sort === 'baja-first') {
+        const aB = a.distance && a.distance >= 420 ? 1 : 0;
+        const bB = b.distance && b.distance >= 420 ? 1 : 0;
+        if (bB !== aB) return bB - aB;
+        return (b.distance||0) - (a.distance||0);
+      }
       if (sort === 'dist-desc') return (b.distance||0) - (a.distance||0);
       if (sort === 'date-desc') return (b.date||'').localeCompare(a.date||'');
       if (sort === 'date-asc')  return (a.date||'').localeCompare(b.date||'');
