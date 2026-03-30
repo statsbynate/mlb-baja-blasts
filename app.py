@@ -291,7 +291,15 @@ def debug():
         data = resp.json()
         total = sum(len(d.get("games", [])) for d in data.get("dates", []))
         final = sum(1 for d in data.get("dates", []) for g in d.get("games", []) if safe_get(g, "status", "abstractGameState") == "Final")
-        first_pk = next((str(g["gamePk"]) for d in data.get("dates", []) for g in d.get("games", []) if safe_get(g, "status", "abstractGameState") == "Final"), None)
+        # Get ALL final game pks so we can find one with HRs
+        all_final_pks = [str(g["gamePk"]) for d in data.get("dates", []) for g in d.get("games", []) if safe_get(g, "status", "abstractGameState") == "Final"]
+        first_pk = all_final_pks[0] if all_final_pks else None
+        # Prefer games we know had HRs for better debug info
+        known_hr_games = ["823649", "823812", "823163", "823486", "823081"]
+        for pk in known_hr_games:
+            if pk in all_final_pks:
+                first_pk = pk
+                break
         result["mlb_api"] = {"status": resp.status_code, "total_games": total, "final_games": final, "sample_game_pk": first_pk}
     except Exception as e:
         result["mlb_api"] = {"error": str(e)}
