@@ -264,9 +264,7 @@ def fetch_all_homeruns(season=SEASON):
         dist = hr.get("distance")
         if dist is not None and dist >= MIN_DISTANCE:
             results.append(hr)
-        elif dist is not None and dist < MIN_DISTANCE:
-            pass  # Known distance, not a Baja Blast — intentionally excluded
-        else:
+        elif dist is None:
             hr["source"] = "MLB Stats API (distance pending)"
             results.append(hr)
 
