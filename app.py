@@ -122,11 +122,14 @@ def fetch_homeruns_for_game(game):
         opponent = game["home"] if half == "top" else game["away"]
 
         # Walk-off: HR is in bottom half, inning >= 9, and it's the last play of the game
-        is_walkoff = (
-            half == "bottom"
-            and int(inning) >= 9
-            and i == last_idx
-        )
+        try:
+            is_walkoff = (
+                half == "bottom"
+                and int(inning) >= 9
+                and i == last_idx
+            )
+        except (ValueError, TypeError):
+            is_walkoff = False
 
         # RBI count from description
         desc = safe_get(play, "result", "description", default="")
@@ -321,7 +324,9 @@ def homeruns():
         _cache = {"data": data, "ts": now}
         return jsonify({"homeruns": data, "count": len(data), "cached": False, "cache_age_seconds": 0})
     except Exception as e:
+        import traceback
         logger.error(f"Error: {e}")
+        logger.error(traceback.format_exc())
         if _cache["data"] is not None:
             return jsonify({
                 "homeruns": _cache["data"],
