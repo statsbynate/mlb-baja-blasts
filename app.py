@@ -147,7 +147,7 @@ def fetch_homeruns_for_game(game):
 def fetch_savant_game_distances(game_pk):
     url = f"https://baseballsavant.mlb.com/gf?game_pk={game_pk}"
     try:
-        resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
+        resp = requests.get(url, headers=SAVANT_HEADERS, timeout=5)
         if resp.status_code != 200:
             return {}
         try:
