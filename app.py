@@ -344,7 +344,15 @@ def homeruns():
             })
         return jsonify({"error": str(e), "homeruns": [], "count": 0}), 500
 
-
+@app.route("/api/test")
+def test():
+    """Step by step test to find where the 500 is happening."""
+    try:
+        games = fetch_final_games()
+        return jsonify({"step": "1_games_ok", "game_count": len(games)})
+    except Exception as e:
+        return jsonify({"step": "1_games_failed", "error": str(e), "trace": traceback.format_exc()}), 500
+        
 @app.route("/api/debug")
 def debug():
     result = {}
