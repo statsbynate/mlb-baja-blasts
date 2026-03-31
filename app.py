@@ -100,9 +100,15 @@ def fetch_homeruns_for_game(game):
     resp = requests.get(url, headers=MLB_HEADERS, timeout=20)
     if resp.status_code != 200:
         return []
+    feed = resp.json()
+    plays = feed.get("liveData", {}).get("plays", {}).get("allPlays", [])
+
+    # Find the index of the last play to detect walk-offs
+    all_play_indices = {p.get("about", {}).get("atBatIndex", -1): i for i, p in enumerate(plays)}
+    last_idx = len(plays) - 1
+
     hrs = []
-    plays = resp.json().get("liveData", {}).get("plays", {}).get("allPlays", [])
-    for play in plays:
+    for i, play in enumerate(plays):
         if safe_get(play, "result", "event").lower() != "home run":
             continue
         hit = play.get("hitData", {})
@@ -114,6 +120,18 @@ def fetch_homeruns_for_game(game):
         half = safe_get(play, "about", "halfInning")
         team = game["away"] if half == "top" else game["home"]
         opponent = game["home"] if half == "top" else game["away"]
+
+        # Walk-off: HR is in bottom half, inning >= 9, and it's the last play of the game
+        is_walkoff = (
+            half == "bottom"
+            and int(inning) >= 9
+            and i == last_idx
+        )
+
+        # RBI count from description
+        desc = safe_get(play, "result", "description", default="")
+        rbi = play.get("result", {}).get("rbi", 0)
+
         hrs.append({
             "player": batter,
             "team": team,
@@ -123,6 +141,9 @@ def fetch_homeruns_for_game(game):
             "launch_angle": round(float(la), 1) if la is not None else None,
             "date": game["gameDate"],
             "inning": inning,
+            "inning_half": half,
+            "rbi": rbi,
+            "is_walkoff": is_walkoff,
             "game_pk": game["gamePk"],
             "source": "MLB Stats API",
         })
