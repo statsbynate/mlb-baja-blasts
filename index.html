@@ -158,7 +158,7 @@
 <div class="main">
 
   <div class="setup-panel" id="setup-panel" style="display:none;">
-    <p>Enter your Render backend URL to connect to live MLB data. Example: <code>https://mlb-hr-tracker.onrender.com</code></p>
+    <p>Update your Render backend URL if needed.</p>
     <label>Backend URL</label>
     <div class="setup-row">
       <input type="text" id="backend-url" placeholder="https://mlb-baja-blasts.onrender.com" />
@@ -255,7 +255,7 @@
         </tr>
       </thead>
       <tbody id="hr-tbody">
-        <tr><td colspan="10" class="empty-state">Connect your backend to load live data.</td></tr>
+        <tr><td colspan="10" class="empty-state">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -270,6 +270,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  const BACKEND_URL = 'https://mlb-baja-blasts.onrender.com';
   const STORAGE_KEY = 'mlb_hr_backend_url';
   const THEME_KEY = 'mlb_hr_theme';
   const REFRESH_INTERVAL = 600;
@@ -285,12 +286,7 @@
   window.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
     applyTheme(savedTheme);
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      document.getElementById('backend-url').value = saved;
-      document.getElementById('setup-panel').style.display = 'none';
-      loadData(false);
-    }
+    loadData(false);
     startCountdown();
   });
 
@@ -317,8 +313,8 @@
   }
 
   function getBackendUrl() {
-  return localStorage.getItem(STORAGE_KEY) || 'https://your-app.onrender.com';
-}
+    return localStorage.getItem(STORAGE_KEY) || BACKEND_URL;
+  }
 
   function startCountdown() {
     if (countdownTimer) clearInterval(countdownTimer);
@@ -339,7 +335,6 @@
 
   async function loadData(manual = false) {
     const base = getBackendUrl();
-    if (!base) { document.getElementById('setup-panel').style.display = 'block'; return; }
     const btn = document.getElementById('refresh-btn');
     const errArea = document.getElementById('error-area');
     errArea.innerHTML = '';
@@ -371,7 +366,7 @@
       document.getElementById('footer-updated').textContent = 'Updated ' + now.toLocaleTimeString() + ' \u2014 ' + (json.cached ? 'cached ' + json.cache_age_seconds + 's ago' : 'fresh from API');
       if (json.error) errArea.innerHTML = '<div class="error-msg">Showing cached data \u2014 live fetch failed: ' + json.error + '</div>';
     } catch(err) {
-      errArea.innerHTML = '<div class="error-msg">Could not connect to backend: ' + err.message + '. <a href="#" style="color:inherit" onclick="document.getElementById(\'setup-panel\').style.display=\'block\';return false;">Edit URL</a></div>';
+      errArea.innerHTML = '<div class="error-msg">Could not connect to backend: ' + err.message + '. <a href="#" style="color:inherit" onclick="document.getElementById(\'setup-panel\').style.display=\'block\';return false;">Change URL</a></div>';
     }
     btn.disabled = false;
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/></svg> Refresh';
