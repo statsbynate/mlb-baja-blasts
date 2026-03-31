@@ -3,6 +3,7 @@ import csv
 import io
 import time
 import logging
+import traceback
 from flask import Flask, jsonify
 from flask_cors import CORS
 import requests
@@ -265,19 +266,26 @@ def fetch_all_homeruns(season=SEASON):
             hrs = fetch_homeruns_for_game(game)
             all_hrs.extend(hrs)
         except Exception as e:
-            logger.warning(f"Game {game['gamePk']} error: {e}")
+            logger.warning(f"Game {game['gamePk']} MLB fetch error: {e}")
 
     logger.info(f"Total HRs from MLB API: {len(all_hrs)}")
 
-    # Build per-game lookup using Savant game feed (exit_velocity array)
-    # Key: game_pk -> {(batter_name, inning): {distance, exit_velocity, launch_angle}}
+    # Enrich with Savant game feed distances, with per-game error isolation
     game_feed_cache = {}
+    for hr in all_hrs:
+        gk = hr["game_pk"]
+        if gk not in game_feed_cache:
+            try:
+                game_feed_cache[gk] = fetch_savant_game_distances(gk)
+            except Exception as e:
+                logger.warning(f"Savant feed {gk} error (skipping): {e}")
+                game_feed_cache[gk] = {}
 
     results = []
     for hr in all_hrs:
         gk = hr["game_pk"]
         if gk not in game_feed_cache:
-            game_feed_cache[gk] = fetch_savant_game_distances(gk)
+            game_feed_cache[gk] = {}
 
         game_lookup = game_feed_cache[gk]
         key = (hr["player"], hr["inning"])
@@ -324,7 +332,6 @@ def homeruns():
         _cache = {"data": data, "ts": now}
         return jsonify({"homeruns": data, "count": len(data), "cached": False, "cache_age_seconds": 0})
     except Exception as e:
-        import traceback
         logger.error(f"Error: {e}")
         logger.error(traceback.format_exc())
         if _cache["data"] is not None:
