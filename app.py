@@ -348,13 +348,29 @@ def homeruns():
 def test():
     try:
         games = fetch_final_games()
-        # Find a game we know had HRs
-        first_game = games[0]
-        hrs = fetch_homeruns_for_game(first_game)
-        savant = fetch_savant_game_distances(first_game['gamePk'])
-        return jsonify({"step": "3_savant_ok", "game_pk": first_game['gamePk'], "hr_count": len(hrs), "savant_entries": len(savant)})
+        all_hrs = []
+        for game in games[:3]:
+            hrs = fetch_homeruns_for_game(game)
+            all_hrs.extend(hrs)
+        game_feed_cache = {}
+        results = []
+        for hr in all_hrs:
+            gk = hr["game_pk"]
+            if gk not in game_feed_cache:
+                game_feed_cache[gk] = fetch_savant_game_distances(gk)
+            game_lookup = game_feed_cache[gk]
+            key = (hr["player"], hr["inning"])
+            enriched = game_lookup.get(key)
+            if enriched and enriched.get("distance"):
+                hr["distance"] = enriched["distance"]
+                hr["play_id"] = enriched.get("play_id", "")
+                hr["source"] = "Statcast (game feed)"
+            else:
+                hr["source"] = "MLB Stats API (distance pending)"
+            results.append(hr)
+        return jsonify({"step": "4_loop_ok", "games_tested": 3, "hrs_found": len(results), "sample": results[0] if results else None})
     except Exception as e:
-        return jsonify({"step": "3_savant_failed", "error": str(e), "trace": traceback.format_exc()}), 500
+        return jsonify({"step": "4_loop_failed", "error": str(e), "trace": traceback.format_exc()}), 500
         
 @app.route("/api/debug")
 def debug():
