@@ -171,7 +171,10 @@ def fetch_savant_game_distances(game_pk):
         resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
         if resp.status_code != 200:
             return {}
-        data = resp.json()
+        try:
+            data = resp.json()
+        except Exception:
+            return {}
 
         # exit_velocity is top-level array of ALL batted balls with Statcast data
         ev_array = data.get("exit_velocity", [])
