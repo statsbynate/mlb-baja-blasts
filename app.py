@@ -145,6 +145,7 @@ def fetch_homeruns_for_game(game):
             "rbi": rbi,
             "is_walkoff": is_walkoff,
             "game_pk": game["gamePk"],
+            "play_id": "",
             "source": "MLB Stats API",
         })
     return hrs
@@ -189,12 +190,14 @@ def fetch_savant_game_distances(game_pk):
                 inning = str(play.get("inning", ""))
                 ev_raw = play.get("hit_speed") or play.get("launch_speed")
                 la_raw = play.get("launch_angle") or play.get("hit_angle")
+                play_id = str(play.get("play_id", "")).strip()
                 key = (name, inning)
                 if key not in lookup:
                     lookup[key] = {
                         "distance": dist,
                         "exit_velocity": round(float(str(ev_raw)), 1) if ev_raw else None,
                         "launch_angle": round(float(str(la_raw)), 1) if la_raw else None,
+                        "play_id": play_id,
                     }
             except (ValueError, TypeError):
                 continue
@@ -281,6 +284,7 @@ def fetch_all_homeruns(season=SEASON):
             hr["distance"] = enriched["distance"]
             hr["exit_velocity"] = enriched.get("exit_velocity") or hr["exit_velocity"]
             hr["launch_angle"] = enriched.get("launch_angle") or hr["launch_angle"]
+            hr["play_id"] = enriched.get("play_id") or hr.get("play_id", "")
             hr["source"] = "Statcast (game feed)"
         else:
             hr["source"] = "MLB Stats API (distance pending)"
