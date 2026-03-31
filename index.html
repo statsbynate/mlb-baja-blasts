@@ -157,7 +157,7 @@
 
 <div class="main">
 
-  <div class="setup-panel" id="setup-panel">
+  <div class="setup-panel" id="setup-panel" style="display:none;">
     <p>Enter your Render backend URL to connect to live MLB data. Example: <code>https://mlb-hr-tracker.onrender.com</code></p>
     <label>Backend URL</label>
     <div class="setup-row">
@@ -317,8 +317,8 @@
   }
 
   function getBackendUrl() {
-    return localStorage.getItem(STORAGE_KEY) || document.getElementById('backend-url').value.trim().replace(/\/$/, '');
-  }
+  return localStorage.getItem(STORAGE_KEY) || 'https://your-app.onrender.com';
+}
 
   function startCountdown() {
     if (countdownTimer) clearInterval(countdownTimer);
