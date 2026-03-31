@@ -348,11 +348,13 @@ def homeruns():
 def test():
     try:
         games = fetch_final_games()
+        # Find a game we know had HRs
         first_game = games[0]
         hrs = fetch_homeruns_for_game(first_game)
-        return jsonify({"step": "2_hrs_ok", "game_pk": first_game['gamePk'], "hr_count": len(hrs)})
+        savant = fetch_savant_game_distances(first_game['gamePk'])
+        return jsonify({"step": "3_savant_ok", "game_pk": first_game['gamePk'], "hr_count": len(hrs), "savant_entries": len(savant)})
     except Exception as e:
-        return jsonify({"step": "2_hrs_failed", "error": str(e), "trace": traceback.format_exc()}), 500
+        return jsonify({"step": "3_savant_failed", "error": str(e), "trace": traceback.format_exc()}), 500
         
 @app.route("/api/debug")
 def debug():
