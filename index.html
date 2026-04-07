@@ -127,6 +127,33 @@
     .walkoff-meta { font-size:11px;color:var(--text3);margin-top:2px;text-align:right; }
     .walkoff-badge { display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:var(--green-bg);color:var(--accent);border:1px solid var(--border2);margin-left:6px;vertical-align:middle; }
     .walkoff-empty { text-align:center;padding:1.5rem;font-size:13px;color:var(--text3); }
+    .leaderboards-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem; }
+    .lb-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem; }
+    .lb-title { font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase;margin-bottom:1rem; }
+    .lb-row { display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border); }
+    .lb-row:last-child { border-bottom:none; }
+    .lb-rank { font-family:"Barlow Condensed",sans-serif;font-size:13px;color:var(--text3);width:20px;flex-shrink:0; }
+    .lb-rank.gold { color:#f5c842; }
+    .lb-rank.silver { color:#a0b0b0; }
+    .lb-rank.bronze { color:#cd7f32; }
+    .lb-name { font-size:13px;font-weight:500;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    .lb-team { font-family:"Barlow Condensed",sans-serif;font-size:11px;font-weight:600;padding:1px 6px;border-radius:3px;background:var(--bg3);border:1px solid var(--border2);color:var(--text3);flex-shrink:0; }
+    .lb-stat { font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:700;color:var(--accent);text-align:right;flex-shrink:0;min-width:50px; }
+    .lb-stat.victim { color:#e07070; }
+    .lb-empty { text-align:center;padding:1.5rem;font-size:13px;color:var(--text3); }
+    @media (max-width:768px) { .leaderboards-grid { grid-template-columns:1fr; } }
+    .spray-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px; }
+    .spray-title { font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase; }
+    .spray-controls { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
+    .spray-toggle { padding:5px 10px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-size:12px;font-family:"Barlow",sans-serif;cursor:pointer;transition:background 0.15s,border-color 0.15s,color 0.15s; }
+    .spray-toggle.active { background:var(--green-bg);border-color:var(--accent);color:var(--accent); }
+    .spray-select { padding:5px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:12px;font-family:"Barlow",sans-serif;cursor:pointer; }
+    .spray-wrap { position:relative;display:flex;justify-content:center; }
+    .spray-tooltip { position:absolute;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:var(--radius);font-size:11px;font-family:"Barlow",sans-serif;pointer-events:none;opacity:0;transition:opacity 0.15s;white-space:nowrap;z-index:10; }
+    .spray-tooltip strong { color:var(--accent);display:block;font-size:12px; }
+    .spray-legend { display:flex;gap:16px;font-size:11px;color:var(--text3);margin-top:8px;flex-wrap:wrap; }
+    .spray-legend-item { display:flex;align-items:center;gap:5px; }
+
     @media (max-width:768px) {
       .main { padding:1rem; }
       .site-header { padding:1rem; }
@@ -195,10 +222,37 @@
       <div class="chart-wrap"><canvas id="teamChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">Most Baja Blasts by player</div>
-      <div class="chart-wrap"><canvas id="playerChart"></canvas></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px;">
+        <div class="chart-title" style="margin-bottom:0;">Baja Blast spray chart</div>
+        <div class="spray-controls">
+          <button class="spray-toggle active" id="spray-all" onclick="setSprayFilter('all')">All</button>
+          <button class="spray-toggle" id="spray-team-btn" onclick="setSprayFilter('team')">Team</button>
+          <button class="spray-toggle" id="spray-player-btn" onclick="setSprayFilter('player')">Player</button>
+          <select class="spray-select" id="spray-select" style="display:none;" onchange="renderSpray()"><option value="">Select...</option></select>
+        </div>
+      </div>
+      <div class="spray-wrap" id="spray-wrap" style="position:relative;">
+        <svg id="spray-svg" viewBox="0 0 400 380" width="100%" style="display:block;"></svg>
+        <div class="spray-tooltip" id="spray-tooltip"></div>
+      </div>
+      <div class="spray-legend" style="margin-top:8px;">
+        <div class="spray-legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00dca0"/></svg> 420&#8211;449 ft</div>
+        <div class="spray-legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00ffcc"/></svg> 450+ ft</div>
+      </div>
     </div>
   </div>
+
+  <div class="leaderboards-grid">
+    <div class="lb-card">
+      <div class="lb-title">Baja Blast leaderboard</div>
+      <div id="lb-players"><div class="lb-empty">Loading...</div></div>
+    </div>
+    <div class="lb-card">
+      <div class="lb-title">Pitcher victims</div>
+      <div id="lb-pitchers"><div class="lb-empty">Loading...</div></div>
+    </div>
+  </div>
+
 
   <div class="map-card" id="map-section">
     <div class="map-header">
@@ -279,7 +333,6 @@
   let countdownTimer = null;
   let secondsLeft = REFRESH_INTERVAL;
   let teamChart = null;
-  let playerChart = null;
   let lastSeenPks = new Set();
   let previousBajaCount = 0;
 
@@ -362,6 +415,8 @@
       renderCharts();
       renderMap();
       renderWalkoffs();
+      renderLeaderboards();
+      renderSpray();
       const now = new Date();
       document.getElementById('footer-updated').textContent = 'Updated ' + now.toLocaleTimeString() + ' \u2014 ' + (json.cached ? 'cached ' + json.cache_age_seconds + 's ago' : 'fresh from API');
       if (json.error) errArea.innerHTML = '<div class="error-msg">Showing cached data \u2014 live fetch failed: ' + json.error + '</div>';
@@ -494,18 +549,7 @@
     } else {
       teamChart = new Chart(teamCtx, { type:'bar', data:{ labels:teamsSorted.map(([t])=>t), datasets:[{ data:teamsSorted.map(([,c])=>c), backgroundColor:teamsSorted.map((_,i)=>i===0?accentColor:barBg), borderColor:teamsSorted.map((_,i)=>i===0?accentColor:barBorder), borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:tickColor,font:{size:11}},grid:{color:gridColor}}, y:{ticks:{color:tickColor,font:{size:11},stepSize:1,precision:0},grid:{color:gridColor}} } } });
     }
-    const playerCounts = {};
-    bajaBlasts.forEach(h => { playerCounts[h.player] = (playerCounts[h.player] || 0) + 1; });
-    const playersSorted = Object.entries(playerCounts).sort((a,b) => b[1]-a[1]).slice(0,10);
-    if (playerChart) playerChart.destroy();
-    const playerCtx = document.getElementById('playerChart').getContext('2d');
-    if (playersSorted.length === 0) {
-      playerCtx.clearRect(0,0,playerCtx.canvas.width,playerCtx.canvas.height);
-      playerCtx.fillStyle = tickColor; playerCtx.font = '13px Barlow,sans-serif'; playerCtx.textAlign = 'center';
-      playerCtx.fillText('Waiting for Statcast distance data...', playerCtx.canvas.width/2, 110);
-    } else {
-      playerChart = new Chart(playerCtx, { type:'bar', indexAxis:'y', data:{ labels:playersSorted.map(([p])=>p.split(' ').pop()), datasets:[{ data:playersSorted.map(([,c])=>c), backgroundColor:playersSorted.map((_,i)=>i===0?accentColor:barBg), borderColor:playersSorted.map((_,i)=>i===0?accentColor:barBorder), borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:tickColor,font:{size:11},stepSize:1,precision:0},grid:{color:gridColor}}, y:{ticks:{color:labelColor,font:{size:12}},grid:{display:false}} } } });
-    }
+
   }
 
   function renderWalkoffs() {
@@ -534,6 +578,195 @@
         '<div>' + distHtml + '<div class="walkoff-meta">' + meta + '</div></div>' +
       '</div>';
     }).join('');
+  }
+
+  function renderLeaderboards() {
+    const bajaBlasts = allHRs.filter(h => h.distance && h.distance >= 420);
+
+    // Player leaderboard — most Baja Blasts, tiebreak by longest
+    const playerMap = {};
+    bajaBlasts.forEach(h => {
+      if (!playerMap[h.player]) playerMap[h.player] = { player: h.player, team: h.team, count: 0, longest: 0, bestEV: 0 };
+      playerMap[h.player].count++;
+      if (h.distance > playerMap[h.player].longest) playerMap[h.player].longest = h.distance;
+      if ((h.exit_velocity || 0) > playerMap[h.player].bestEV) playerMap[h.player].bestEV = h.exit_velocity || 0;
+    });
+    const players = Object.values(playerMap).sort((a,b) => b.count - a.count || b.longest - a.longest).slice(0, 10);
+
+    const rankLabel = (i) => {
+      if (i === 0) return '<span class="lb-rank gold">1</span>';
+      if (i === 1) return '<span class="lb-rank silver">2</span>';
+      if (i === 2) return '<span class="lb-rank bronze">3</span>';
+      return '<span class="lb-rank">' + (i+1) + '</span>';
+    };
+
+    const plEl = document.getElementById('lb-players');
+    if (players.length === 0) {
+      plEl.innerHTML = '<div class="lb-empty">No Baja Blasts yet.</div>';
+    } else {
+      plEl.innerHTML = players.map((p, i) => {
+        const countLabel = p.count + ' blast' + (p.count !== 1 ? 's' : '');
+        return '<div class="lb-row">' +
+          rankLabel(i) +
+          '<span class="lb-name">' + p.player + '</span>' +
+          '<span class="lb-team">' + p.team + '</span>' +
+          '<span class="lb-stat">' + countLabel + '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    // Pitcher victims — most Baja Blasts allowed
+    const pitcherMap = {};
+    bajaBlasts.forEach(h => {
+      const key = h.opponent;
+      if (!pitcherMap[key]) pitcherMap[key] = { team: key, count: 0, longest: 0 };
+      pitcherMap[key].count++;
+      if (h.distance > pitcherMap[key].longest) pitcherMap[key].longest = h.distance;
+    });
+    const victims = Object.values(pitcherMap).sort((a,b) => b.count - a.count || b.longest - a.longest).slice(0, 10);
+
+    const ptEl = document.getElementById('lb-pitchers');
+    if (victims.length === 0) {
+      ptEl.innerHTML = '<div class="lb-empty">No Baja Blasts yet.</div>';
+    } else {
+      ptEl.innerHTML = victims.map((v, i) => {
+        const countLabel = v.count + ' allowed';
+        return '<div class="lb-row">' +
+          rankLabel(i) +
+          '<span class="lb-name">' + v.team + ' pitching</span>' +
+          '<span class="lb-team">' + v.longest + ' ft</span>' +
+          '<span class="lb-stat victim">' + countLabel + '</span>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  // ── Spray chart ──────────────────────────────────────────────────────────
+  let sprayFilter = 'all';
+
+  function setSprayFilter(mode) {
+    sprayFilter = mode;
+    ['all','team','player'].forEach(m => {
+      const btn = document.getElementById('spray-' + (m === 'all' ? 'all' : m + '-btn'));
+      if (btn) btn.classList.toggle('active', m === mode);
+    });
+    const sel = document.getElementById('spray-select');
+    if (mode === 'all') {
+      sel.style.display = 'none';
+    } else {
+      sel.style.display = '';
+      const bajaBlasts = allHRs.filter(h => h.distance && h.distance >= 420 && h.hc_x && h.hc_y);
+      if (mode === 'team') {
+        const teams = [...new Set(bajaBlasts.map(h => h.team))].sort();
+        sel.innerHTML = '<option value="">All teams</option>' + teams.map(t => '<option value="' + t + '">' + t + '</option>').join('');
+      } else {
+        const players = [...new Set(bajaBlasts.map(h => h.player))].sort();
+        sel.innerHTML = '<option value="">All players</option>' + players.map(p => '<option value="' + p + '">' + p + '</option>').join('');
+      }
+    }
+    renderSpray();
+  }
+
+  function renderSpray() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const svg = document.getElementById('spray-svg');
+    const tip = document.getElementById('spray-tooltip');
+    const wrap = document.getElementById('spray-wrap');
+
+    let blasts = allHRs.filter(h => h.distance && h.distance >= 420 && h.hc_x && h.hc_y);
+
+    const selVal = document.getElementById('spray-select').value;
+    if (sprayFilter === 'team' && selVal) blasts = blasts.filter(h => h.team === selVal);
+    if (sprayFilter === 'player' && selVal) blasts = blasts.filter(h => h.player === selVal);
+
+    // Clear SVG
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const fieldColor = isDark ? '#0a2e1a' : '#e4f5ee';
+    const lineColor = isDark ? 'rgba(0,220,160,0.2)' : 'rgba(0,160,110,0.2)';
+    const dirtColor = isDark ? '#0d2a18' : '#d4ead8';
+    const accentColor = isDark ? '#00dca0' : '#009e72';
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs) => {
+      const e = document.createElementNS(ns, tag);
+      Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k, v));
+      return e;
+    };
+
+    // Outfield arc
+    svg.appendChild(el('path', { d:'M 60 355 A 200 200 0 0 1 340 355 Z', fill: fieldColor, stroke: lineColor, 'stroke-width': '0.5' }));
+
+    // Infield dirt
+    svg.appendChild(el('circle', { cx:200, cy:230, r:80, fill: dirtColor }));
+
+    // Infield grass
+    svg.appendChild(el('polygon', { points:'200,150 270,230 200,310 130,230', fill: fieldColor }));
+
+    // Foul lines
+    [[-1],[1]].forEach(([dx]) => {
+      svg.appendChild(el('line', { x1:200, y1:355, x2: 200+dx*180, y2:175, stroke: lineColor, 'stroke-width':'0.5' }));
+    });
+
+    // Distance arcs
+    [[85,'rgba(0,220,160,0.08)','none'],[140,'rgba(0,220,160,0.08)','none'],[188,'rgba(0,220,160,0.3)','4 3']].forEach(([r,stroke,dash]) => {
+      const arc = el('path', { d: 'M '+(200-r)+' 355 A '+r+' '+r+' 0 0 1 '+(200+r)+' 355', fill:'none', stroke, 'stroke-width': r===188?'1':'0.5' });
+      if (dash !== 'none') arc.setAttribute('stroke-dasharray', dash);
+      svg.appendChild(arc);
+    });
+
+    // 420ft label
+    const lbl = el('text', { x: 388, y: 350, fill:'rgba(0,220,160,0.5)', 'font-size':'9', 'font-family':'sans-serif' });
+    lbl.textContent = '420 ft';
+    svg.appendChild(lbl);
+
+    // Bases
+    [[200,150],[270,230],[200,310],[130,230]].forEach(([x,y]) => {
+      const b = el('rect', { x:x-5, y:y-5, width:10, height:10, fill:'rgba(0,220,160,0.4)', rx:1 });
+      b.setAttribute('transform', 'rotate(45 '+x+' '+y+')');
+      svg.appendChild(b);
+    });
+
+    // Home plate
+    svg.appendChild(el('polygon', { points:'200,350 193,357 193,362 207,362 207,357', fill:'rgba(0,220,160,0.5)' }));
+
+    if (blasts.length === 0) {
+      const t = el('text', { x:200, y:200, 'text-anchor':'middle', fill: isDark?'#2e7a58':'#5aab88', 'font-size':'13', 'font-family':'sans-serif' });
+      t.textContent = 'No Baja Blasts to plot';
+      svg.appendChild(t);
+      return;
+    }
+
+    // Convert Savant hc_x/hc_y to SVG coords
+    // Savant: home plate ~(125.42, 198.27), scale ~2.5 ft per unit
+    const scale = 1.55;
+    const hpX = 125.42, hpY = 198.27;
+
+    blasts.forEach(h => {
+      const sx = 200 + (h.hc_x - hpX) * scale;
+      const sy = 355 - (hpY - h.hc_y) * scale;
+
+      const isElite = h.distance >= 450;
+      const color = isElite ? '#00ffcc' : accentColor;
+      const r = isElite ? 7 : 5;
+
+      // Glow
+      svg.appendChild(el('circle', { cx:sx, cy:sy, r:r+4, fill: isElite?'rgba(0,255,204,0.12)':'rgba(0,220,160,0.1)' }));
+
+      // Dot
+      const dot = el('circle', { cx:sx, cy:sy, r, fill:color, opacity:'0.9', cursor:'pointer' });
+      dot.addEventListener('mouseover', () => {
+        tip.innerHTML = '<strong>' + h.player + ' (' + h.team + ')</strong>' + h.distance + ' ft &middot; ' + (h.exit_velocity ? h.exit_velocity.toFixed(1)+' mph' : '') + (h.launch_angle ? ' &middot; ' + h.launch_angle.toFixed(1) + '°' : '');
+        tip.style.opacity = '1';
+      });
+      dot.addEventListener('mousemove', (e) => {
+        const rect = wrap.getBoundingClientRect();
+        tip.style.left = (e.clientX - rect.left + 12) + 'px';
+        tip.style.top = (e.clientY - rect.top - 40) + 'px';
+      });
+      dot.addEventListener('mouseout', () => { tip.style.opacity = '0'; });
+      svg.appendChild(dot);
+    });
   }
 
   function toggleBlast() {
