@@ -61,7 +61,7 @@
     .stat-sub { font-size:12px;color:var(--text3);margin-top:4px; }
     .chart-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem; }
     .chart-title { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase;margin-bottom:1rem; }
-    .chart-wrap { position:relative;height:220px; }
+    .chart-wrap { position:relative;height:320px; }
     .controls { display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap; }
     .search-wrap { position:relative;flex:1;min-width:200px;max-width:300px; }
     .search-wrap svg { position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none; }
@@ -624,7 +624,7 @@
     const victims = Object.values(pitcherMap)
       .filter(v => v.pitcher !== 'Unknown')
       .sort((a,b) => b.count - a.count || b.longest - a.longest)
-      .slice(0, 10);
+      .slice(0, 15);
 
     const ptEl = document.getElementById('lb-pitchers');
     if (victims.length === 0) {
