@@ -9,14 +9,7 @@ from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
-CORS(app, origins="*", supports_credentials=False)
-
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return response
+CORS(app)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -116,6 +109,7 @@ def fetch_homeruns_for_game(game):
         ev = hit.get("launchSpeed")
         la = hit.get("launchAngle")
         batter = safe_get(play, "matchup", "batter", "fullName") or "Unknown"
+        pitcher = safe_get(play, "matchup", "pitcher", "fullName") or "Unknown"
         inning = str(safe_get(play, "about", "inning"))
         half = safe_get(play, "about", "halfInning")
         team = game["away"] if half == "top" else game["home"]
@@ -138,7 +132,10 @@ def fetch_homeruns_for_game(game):
             "rbi": rbi,
             "is_walkoff": is_walkoff,
             "game_pk": game["gamePk"],
+            "pitcher": pitcher,
             "play_id": "",
+            "hc_x": None,
+            "hc_y": None,
             "source": "MLB Stats API",
         })
     return hrs
@@ -147,7 +144,7 @@ def fetch_homeruns_for_game(game):
 def fetch_savant_game_distances(game_pk):
     url = f"https://baseballsavant.mlb.com/gf?game_pk={game_pk}"
     try:
-        resp = requests.get(url, headers=SAVANT_HEADERS, timeout=5)
+        resp = requests.get(url, headers=SAVANT_HEADERS, timeout=15)
         if resp.status_code != 200:
             return {}
         try:
@@ -175,6 +172,8 @@ def fetch_savant_game_distances(game_pk):
                 ev_raw = play.get("hit_speed") or play.get("launch_speed")
                 la_raw = play.get("launch_angle") or play.get("hit_angle")
                 play_id = str(play.get("play_id", "")).strip()
+                hc_x = play.get("hc_x")
+                hc_y = play.get("hc_y")
                 key = (name, inning)
                 if key not in lookup:
                     lookup[key] = {
@@ -182,6 +181,8 @@ def fetch_savant_game_distances(game_pk):
                         "exit_velocity": round(float(str(ev_raw)), 1) if ev_raw else None,
                         "launch_angle": round(float(str(la_raw)), 1) if la_raw else None,
                         "play_id": play_id,
+                        "hc_x": round(float(str(hc_x)), 2) if hc_x else None,
+                        "hc_y": round(float(str(hc_y)), 2) if hc_y else None,
                     }
             except (ValueError, TypeError):
                 continue
@@ -229,6 +230,8 @@ def fetch_all_homeruns(season=SEASON):
             hr["exit_velocity"] = enriched.get("exit_velocity") or hr["exit_velocity"]
             hr["launch_angle"] = enriched.get("launch_angle") or hr["launch_angle"]
             hr["play_id"] = enriched.get("play_id", "")
+            hr["hc_x"] = enriched.get("hc_x")
+            hr["hc_y"] = enriched.get("hc_y")
             hr["source"] = "Statcast (game feed)"
         else:
             hr["source"] = "MLB Stats API (distance pending)"
