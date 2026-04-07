@@ -16,14 +16,14 @@
       --text:#d4f5ea;--text2:#6abf9a;--text3:#2e7a58;--accent:#00dca0;--accent2:#00ffcc;
       --green:#00dca0;--green-bg:rgba(0,220,160,0.1);--amber:#00ffcc;--blue:#00b8a0;
       --chart-bar:#0d301f;--chart-bar-border:#134030;--chart-tick:#2e7a58;--chart-grid:rgba(0,220,160,0.04);
-      --radius:8px;--radius-lg:12px;
+      --radius:8px;--radius-lg:12px;--yellow:#F7C500;--yellow-bg:rgba(247,197,0,0.1);
     }
     [data-theme="light"] {
       --bg:#f0faf6;--bg2:#ffffff;--bg3:#e4f5ee;--border:rgba(0,160,110,0.15);--border2:rgba(0,160,110,0.25);
       --text:#0a2e1f;--text2:#1a7a55;--text3:#5aab88;--accent:#009e72;--accent2:#00c48c;
       --green:#009e72;--green-bg:rgba(0,158,114,0.1);--amber:#007a58;--blue:#008f6a;
       --chart-bar:#e4f5ee;--chart-bar-border:#b8e8d4;--chart-tick:#5aab88;--chart-grid:rgba(0,160,110,0.06);
-      --radius:8px;--radius-lg:12px;
+      --radius:8px;--radius-lg:12px;--yellow:#D4A800;--yellow-bg:rgba(212,168,0,0.1);
     }
     body { font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0;transition:background 0.2s,color 0.2s; }
     .site-header { background:var(--bg2);border-bottom:1px solid var(--border);padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap; }
@@ -54,12 +54,11 @@
     .stat-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;position:relative;overflow:hidden; }
     .stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent); }
     .stat-card.green::before { background:var(--green); }
-    .stat-card.amber::before { background:var(--amber); }
+    .stat-card.amber::before { background:var(--yellow); }
     .stat-card.blue::before  { background:var(--blue); }
     .stat-label { font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.8px;color:var(--text2);margin-bottom:6px; }
     .stat-value { font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;color:var(--text);line-height:1; }
     .stat-sub { font-size:12px;color:var(--text3);margin-top:4px; }
-    .charts-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem; }
     .chart-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem; }
     .chart-title { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase;margin-bottom:1rem; }
     .chart-wrap { position:relative;height:220px; }
@@ -87,7 +86,7 @@
     .player-name { font-weight:500;color:var(--text); }
     .team-chip { display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.5px;padding:2px 8px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2); }
     .dist-badge { display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--green-bg);color:var(--green);border:1px solid var(--border2); }
-    .dist-badge.elite { background:rgba(0,220,160,0.15);color:var(--accent2);border-color:var(--border2); }
+    .dist-badge.elite { background:rgba(247,197,0,0.12);color:var(--yellow);border-color:rgba(247,197,0,0.3); }
     .dist-badge.pending { background:var(--bg3);color:var(--text3);border-color:var(--border);font-size:11px; }
     .tweet-btn { display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s,color 0.15s,border-color 0.15s;white-space:nowrap;text-decoration:none; }
     .tweet-btn:hover { background:#1da1f2;border-color:#1da1f2;color:white; }
@@ -125,7 +124,7 @@
     .walkoff-dist.elite { color:var(--accent2); }
     .walkoff-dist.pending { font-size:13px;color:var(--text3); }
     .walkoff-meta { font-size:11px;color:var(--text3);margin-top:2px;text-align:right; }
-    .walkoff-badge { display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:var(--green-bg);color:var(--accent);border:1px solid var(--border2);margin-left:6px;vertical-align:middle; }
+    .walkoff-badge { display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:rgba(247,197,0,0.1);color:var(--yellow);border:1px solid rgba(247,197,0,0.3);margin-left:6px;vertical-align:middle; }
     .walkoff-empty { text-align:center;padding:1.5rem;font-size:13px;color:var(--text3); }
     .leaderboards-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem; }
     .lb-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem; }
@@ -133,7 +132,7 @@
     .lb-row { display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border); }
     .lb-row:last-child { border-bottom:none; }
     .lb-rank { font-family:"Barlow Condensed",sans-serif;font-size:13px;color:var(--text3);width:20px;flex-shrink:0; }
-    .lb-rank.gold { color:#f5c842; }
+    .lb-rank.gold { color:#F7C500; }
     .lb-rank.silver { color:#a0b0b0; }
     .lb-rank.bronze { color:#cd7f32; }
     .lb-name { font-size:13px;font-weight:500;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
@@ -158,7 +157,6 @@
       .main { padding:1rem; }
       .site-header { padding:1rem; }
       .stats-grid { grid-template-columns:repeat(2,1fr); }
-      .charts-grid { grid-template-columns:1fr; }
       .site-title { font-size:22px; }
     }
   </style>
@@ -216,10 +214,21 @@
     </div>
   </div>
 
-  <div class="charts-grid">
+  <div class="leaderboards-grid" style="margin-bottom:1.5rem;">
     <div class="chart-card">
       <div class="chart-title">Baja Blasts by team</div>
       <div class="chart-wrap"><canvas id="teamChart"></canvas></div>
+    </div>
+    <div class="lb-card">
+      <div class="lb-title">Baja Blast leaderboard</div>
+      <div id="lb-players"><div class="lb-empty">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="leaderboards-grid" style="margin-bottom:1.5rem;">
+    <div class="lb-card">
+      <div class="lb-title">Pitcher victims</div>
+      <div id="lb-pitchers"><div class="lb-empty">Loading...</div></div>
     </div>
     <div class="chart-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px;">
@@ -239,17 +248,6 @@
         <div class="spray-legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00dca0"/></svg> 420&#8211;449 ft</div>
         <div class="spray-legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00ffcc"/></svg> 450+ ft</div>
       </div>
-    </div>
-  </div>
-
-  <div class="leaderboards-grid">
-    <div class="lb-card">
-      <div class="lb-title">Baja Blast leaderboard</div>
-      <div id="lb-players"><div class="lb-empty">Loading...</div></div>
-    </div>
-    <div class="lb-card">
-      <div class="lb-title">Pitcher victims</div>
-      <div id="lb-pitchers"><div class="lb-empty">Loading...</div></div>
     </div>
   </div>
 
@@ -615,26 +613,30 @@
       }).join('');
     }
 
-    // Pitcher victims — most Baja Blasts allowed
+    // Pitcher victims — individual pitchers who gave up Baja Blasts
     const pitcherMap = {};
     bajaBlasts.forEach(h => {
-      const key = h.opponent;
-      if (!pitcherMap[key]) pitcherMap[key] = { team: key, count: 0, longest: 0 };
+      const key = h.pitcher || 'Unknown';
+      if (!pitcherMap[key]) pitcherMap[key] = { pitcher: key, team: h.opponent || '', count: 0, longest: 0 };
       pitcherMap[key].count++;
-      if (h.distance > pitcherMap[key].longest) pitcherMap[key].longest = h.distance;
+      if ((h.distance || 0) > pitcherMap[key].longest) pitcherMap[key].longest = h.distance;
     });
-    const victims = Object.values(pitcherMap).sort((a,b) => b.count - a.count || b.longest - a.longest).slice(0, 10);
+    const victims = Object.values(pitcherMap)
+      .filter(v => v.pitcher !== 'Unknown')
+      .sort((a,b) => b.count - a.count || b.longest - a.longest)
+      .slice(0, 10);
 
     const ptEl = document.getElementById('lb-pitchers');
     if (victims.length === 0) {
       ptEl.innerHTML = '<div class="lb-empty">No Baja Blasts yet.</div>';
     } else {
       ptEl.innerHTML = victims.map((v, i) => {
+        const lastName = v.pitcher.split(' ').pop();
         const countLabel = v.count + ' allowed';
         return '<div class="lb-row">' +
           rankLabel(i) +
-          '<span class="lb-name">' + v.team + ' pitching</span>' +
-          '<span class="lb-team">' + v.longest + ' ft</span>' +
+          '<span class="lb-name">' + lastName + '</span>' +
+          '<span class="lb-team">' + v.team + '</span>' +
           '<span class="lb-stat victim">' + countLabel + '</span>' +
         '</div>';
       }).join('');
@@ -787,7 +789,7 @@
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    const COLORS = ['#00dca0','#00ffcc','#00b8a0','#ffffff','#a0ffe8','#005540'];
+    const COLORS = ['#00dca0','#00ffcc','#F7C500','#ffffff','#a0ffe8','#F7C500','#005540'];
     const pieces = Array.from({length:150}, () => ({
       x: Math.random()*canvas.width, y: -10-Math.random()*100,
       w: 6+Math.random()*8, h: 4+Math.random()*6,
