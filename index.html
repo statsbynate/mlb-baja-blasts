@@ -113,19 +113,6 @@
     .map-tooltip { position:absolute;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:7px 11px;border-radius:var(--radius);font-size:12px;font-family:'Barlow',sans-serif;pointer-events:none;opacity:0;transition:opacity 0.15s;white-space:nowrap;z-index:10; }
     .map-tooltip strong { color:var(--accent);display:block;font-size:13px;margin-bottom:2px; }
     .map-pending { text-align:center;padding:2rem;font-size:13px;color:var(--text3); }
-    .walkoff-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.5rem; }
-    .walkoff-title { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase;margin-bottom:1rem; }
-    .walkoff-item { background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:14px; }
-    .walkoff-item:last-child { margin-bottom:0; }
-    .walkoff-item.baja { border-color:var(--border2); }
-    .walkoff-player { font-size:14px;font-weight:500;color:var(--text); }
-    .walkoff-desc { font-size:12px;color:var(--text2);margin-top:2px; }
-    .walkoff-dist { font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--accent);text-align:right; }
-    .walkoff-dist.elite { color:var(--accent2); }
-    .walkoff-dist.pending { font-size:13px;color:var(--text3); }
-    .walkoff-meta { font-size:11px;color:var(--text3);margin-top:2px;text-align:right; }
-    .walkoff-badge { display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:rgba(247,197,0,0.1);color:var(--yellow);border:1px solid rgba(247,197,0,0.3);margin-left:6px;vertical-align:middle; }
-    .walkoff-empty { text-align:center;padding:1.5rem;font-size:13px;color:var(--text3); }
     .leaderboards-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem; }
     .lb-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem; }
     .lb-title { font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase;margin-bottom:1rem; }
@@ -141,6 +128,23 @@
     .lb-stat.victim { color:#e07070; }
     .lb-empty { text-align:center;padding:1.5rem;font-size:13px;color:var(--text3); }
     @media (max-width:768px) { .leaderboards-grid { grid-template-columns:1fr; } }
+    .knocking-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.5rem; }
+    .knocking-title { font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase;margin-bottom:4px; }
+    .knocking-sub { font-size:11px;color:var(--text3);margin-bottom:1rem; }
+    .knocking-row { display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:8px; }
+    .knocking-row:last-child { margin-bottom:0; }
+    .knocking-rank { font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:700;width:24px;text-align:center;flex-shrink:0; }
+    .knocking-info { flex:1;min-width:0; }
+    .knocking-name { font-size:14px;font-weight:500;color:var(--text); }
+    .knocking-meta { font-size:11px;color:var(--text3);margin-top:2px; }
+    .knocking-best { text-align:right;flex-shrink:0; }
+    .knocking-dist { font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:700;color:var(--accent); }
+    .knocking-label { font-size:10px;color:var(--text3); }
+    .knocking-bar-wrap { width:64px;flex-shrink:0; }
+    .knocking-bar-bg { height:6px;background:rgba(0,220,160,0.12);border-radius:999px;overflow:hidden; }
+    .knocking-bar-fill { height:100%;border-radius:999px;background:var(--accent); }
+    .knocking-bar-label { font-size:9px;color:var(--text3);margin-top:3px;text-align:center; }
+    .knocking-empty { text-align:center;padding:1.5rem;font-size:13px;color:var(--text3); }
     .spray-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px; }
     .spray-title { font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:600;letter-spacing:0.5px;color:var(--text2);text-transform:uppercase; }
     .spray-controls { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
@@ -247,10 +251,17 @@
       <div class="spray-legend" style="margin-top:8px;">
         <div class="spray-legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00dca0"/></svg> 420&#8211;449 ft</div>
         <div class="spray-legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#00ffcc"/></svg> 450+ ft</div>
+        <div class="spray-legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#F7C500"/></svg> Walk-off</div>
       </div>
     </div>
   </div>
 
+
+  <div class="knocking-card">
+    <div class="knocking-title">&#128680; Knocking on the door</div>
+    <div class="knocking-sub">Players with 2+ HRs this season but no Baja Blast yet &mdash; sorted by closest to 420 ft</div>
+    <div id="knocking-list"><div class="knocking-empty">Loading...</div></div>
+  </div>
 
   <div class="map-card" id="map-section">
     <div class="map-header">
@@ -268,10 +279,6 @@
     </div>
   </div>
 
-  <div class="walkoff-card">
-    <div class="walkoff-title">Walk-off Home Runs</div>
-    <div id="walkoff-list"><div class="walkoff-empty">No walk-off home runs yet this season.</div></div>
-  </div>
 
   <div class="controls">
     <div class="search-wrap">
@@ -412,8 +419,8 @@
       renderTable();
       renderCharts();
       renderMap();
-      renderWalkoffs();
       renderLeaderboards();
+      renderKnocking();
       renderSpray();
       const now = new Date();
       document.getElementById('footer-updated').textContent = 'Updated ' + now.toLocaleTimeString() + ' \u2014 ' + (json.cached ? 'cached ' + json.cache_age_seconds + 's ago' : 'fresh from API');
@@ -508,7 +515,7 @@
         : '';
       return '<tr>' +
         '<td class="rank">' + (i+1) + '</td>' +
-        '<td><span class="player-name">' + h.player + '</span></td>' +
+        '<td><span class="player-name">' + h.player + '</span>' + (h.is_walkoff ? '<span class="walkoff-badge" style="margin-left:6px;">Walk-off</span>' : '') + '</td>' +
         '<td><span class="team-chip">' + h.team + '</span></td>' +
         '<td>' + distCell + '</td>' +
         '<td style="color:var(--text2);font-size:13px;">' + ev + '</td>' +
@@ -550,33 +557,6 @@
 
   }
 
-  function renderWalkoffs() {
-    const walkoffs = allHRs.filter(h => h.is_walkoff);
-    const el = document.getElementById('walkoff-list');
-    if (walkoffs.length === 0) { el.innerHTML = '<div class="walkoff-empty">No walk-off home runs yet this season.</div>'; return; }
-    el.innerHTML = walkoffs.map(h => {
-      const isBaja = h.distance && h.distance >= 420;
-      const isElite = h.distance && h.distance >= 450;
-      const distHtml = h.distance
-        ? '<div class="walkoff-dist' + (isElite?' elite':'') + '">' + h.distance + ' ft</div>'
-        : '<div class="walkoff-dist pending">dist pending</div>';
-      const ev = h.exit_velocity ? h.exit_velocity.toFixed(1) + ' mph' : '';
-      const la = h.launch_angle ? h.launch_angle.toFixed(1) + '\u00b0' : '';
-      const meta = [ev, la].filter(Boolean).join(' \u00b7 ');
-      let dateStr = h.date || '';
-      try { dateStr = new Date(h.date + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); } catch(e) {}
-      const rbi = h.rbi ? h.rbi + ' RBI' : '';
-      const desc = h.team + ' def. ' + h.opponent + ' \u00b7 ' + dateStr + ' \u00b7 Inn. ' + h.inning + (rbi ? ' \u00b7 ' + rbi : '');
-      const videoLink = h.play_id ? ' <a href="https://baseballsavant.mlb.com/sporty-videos?playId=' + h.play_id + '" target="_blank" class="video-btn" style="font-size:10px;padding:2px 6px;margin-left:6px;vertical-align:middle;">Video</a>' : '';
-      return '<div class="walkoff-item' + (isBaja?' baja':'') + '">' +
-        '<div style="flex:1;min-width:0">' +
-          '<div class="walkoff-player">' + h.player + '<span class="walkoff-badge">Walk-off</span>' + (isBaja ? '<span class="walkoff-badge" style="margin-left:4px;">Baja Blast</span>' : '') + videoLink + '</div>' +
-          '<div class="walkoff-desc">' + desc + '</div>' +
-        '</div>' +
-        '<div>' + distHtml + '<div class="walkoff-meta">' + meta + '</div></div>' +
-      '</div>';
-    }).join('');
-  }
 
   function renderLeaderboards() {
     const bajaBlasts = allHRs.filter(h => h.distance && h.distance >= 420);
@@ -641,6 +621,59 @@
         '</div>';
       }).join('');
     }
+  }
+
+  function renderKnocking() {
+    const el = document.getElementById('knocking-list');
+
+    // Players with NO Baja Blasts (no HR >= 420ft)
+    const bajaPlayers = new Set(allHRs.filter(h => h.distance && h.distance >= 420).map(h => h.player));
+
+    // Build stats for players with 2+ HRs but no Baja Blast
+    const playerMap = {};
+    allHRs.forEach(h => {
+      if (bajaPlayers.has(h.player)) return;
+      if (!h.distance) return;
+      if (!playerMap[h.player]) playerMap[h.player] = { player: h.player, team: h.team, count: 0, best: 0, total: 0 };
+      playerMap[h.player].count++;
+      playerMap[h.player].total += h.distance;
+      if (h.distance > playerMap[h.player].best) playerMap[h.player].best = h.distance;
+    });
+
+    const candidates = Object.values(playerMap)
+      .filter(p => p.count >= 2 && p.best >= 380)
+      .sort((a,b) => b.best - a.best || b.count - a.count)
+      .slice(0, 8);
+
+    if (candidates.length === 0) {
+      el.innerHTML = '<div class="knocking-empty">No candidates yet &mdash; check back as more games complete.</div>';
+      return;
+    }
+
+    const rankColors = ['#F7C500','#a0b0b0','#cd7f32'];
+
+    el.innerHTML = candidates.map((p, i) => {
+      const avg = Math.round(p.total / p.count);
+      const gap = 420 - p.best;
+      const pct = Math.min(100, Math.round((p.best / 420) * 100));
+      const barColor = gap <= 5 ? '#F7C500' : gap <= 15 ? 'var(--accent2)' : 'var(--accent)';
+      const rankColor = rankColors[i] || 'var(--text3)';
+      return '<div class="knocking-row">' +
+        '<div class="knocking-rank" style="color:' + rankColor + '">' + (i+1) + '</div>' +
+        '<div class="knocking-info">' +
+          '<div class="knocking-name">' + p.player + '</div>' +
+          '<div class="knocking-meta">' + p.count + ' HRs &middot; avg ' + avg + ' ft &middot; <span class="team-chip" style="font-size:10px;padding:1px 5px;">' + p.team + '</span></div>' +
+        '</div>' +
+        '<div class="knocking-best">' +
+          '<div class="knocking-dist">' + p.best + ' ft</div>' +
+          '<div class="knocking-label">best this season</div>' +
+        '</div>' +
+        '<div class="knocking-bar-wrap">' +
+          '<div class="knocking-bar-bg"><div class="knocking-bar-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div>' +
+          '<div class="knocking-bar-label">' + gap + ' ft away</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
   }
 
   // ── Spray chart ──────────────────────────────────────────────────────────
@@ -749,16 +782,17 @@
       const sy = 355 - (hpY - h.hc_y) * scale;
 
       const isElite = h.distance >= 450;
-      const color = isElite ? '#00ffcc' : accentColor;
+      const isWalkoff = !!h.is_walkoff;
+      const color = isWalkoff ? '#F7C500' : isElite ? '#00ffcc' : accentColor;
       const r = isElite ? 7 : 5;
 
       // Glow
-      svg.appendChild(el('circle', { cx:sx, cy:sy, r:r+4, fill: isElite?'rgba(0,255,204,0.12)':'rgba(0,220,160,0.1)' }));
+      svg.appendChild(el('circle', { cx:sx, cy:sy, r:r+4, fill: isWalkoff?'rgba(247,197,0,0.15)':isElite?'rgba(0,255,204,0.12)':'rgba(0,220,160,0.1)' }));
 
       // Dot
       const dot = el('circle', { cx:sx, cy:sy, r, fill:color, opacity:'0.9', cursor:'pointer' });
       dot.addEventListener('mouseover', () => {
-        tip.innerHTML = '<strong>' + h.player + ' (' + h.team + ')</strong>' + h.distance + ' ft &middot; ' + (h.exit_velocity ? h.exit_velocity.toFixed(1)+' mph' : '') + (h.launch_angle ? ' &middot; ' + h.launch_angle.toFixed(1) + '°' : '');
+        tip.innerHTML = '<strong>' + h.player + ' (' + h.team + ')</strong>' + h.distance + ' ft &middot; ' + (h.exit_velocity ? h.exit_velocity.toFixed(1)+' mph' : '') + (h.launch_angle ? ' &middot; ' + h.launch_angle.toFixed(1) + '°' : '') + (h.is_walkoff ? ' &middot; Walk-off' : '');
         tip.style.opacity = '1';
       });
       dot.addEventListener('mousemove', (e) => {
