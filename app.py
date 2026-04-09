@@ -216,7 +216,7 @@ def fetch_all_homeruns(season=SEASON):
             logger.warning(f"Game {game['gamePk']} error: {e}")
             return game["gamePk"], []
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {executor.submit(fetch_game, game): game for game in games_to_fetch}
         for future in as_completed(futures):
             gk, hrs = future.result()
@@ -239,7 +239,7 @@ def fetch_all_homeruns(season=SEASON):
             logger.warning(f"Savant feed {gk} error: {e}")
             return gk, {}
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {executor.submit(fetch_one, gk): gk for gk in pks_to_fetch}
         for future in as_completed(futures):
             gk, data = future.result()
