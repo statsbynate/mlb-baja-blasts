@@ -18,10 +18,12 @@ logger = logging.getLogger(__name__)
 _cache = {"data": None, "ts": 0}
 _game_cache = {}  # game_pk -> list of HRs, permanently cached once fetched
 _savant_cache = {}  # game_pk -> savant lookup, permanently cached once fetched
+_notified_blasts = set()
 CACHE_TTL = 1800
 
 SEASON = "2026"
 MIN_DISTANCE = 420
+NTFY_CHANNEL = "baja-blast-tracker-2026"
 
 MLB_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
@@ -273,6 +275,53 @@ def fetch_all_homeruns(season=SEASON):
     return baja + sub + pending
 
 
+
+def send_ntfy_notification(hr):
+    try:
+        dist = hr.get("distance", "")
+        player = hr.get("player", "Unknown")
+        team = hr.get("team", "")
+        opponent = hr.get("opponent", "")
+        ev = hr.get("exit_velocity")
+        inning = hr.get("inning", "")
+        title = f"🌊 Baja Blast! {player} ({team})"
+        parts = [f"{dist} ft"]
+        if ev: parts.append(f"{ev} mph exit velo")
+        if opponent: parts.append(f"vs {opponent}")
+        if inning: parts.append(f"Inn. {inning}")
+        body = " · ".join(parts)
+        requests.post(
+            f"https://ntfy.sh/{NTFY_CHANNEL}",
+            data=body.encode("utf-8"),
+            headers={
+                "Title": title,
+                "Priority": "high",
+                "Tags": "baseball,tada",
+                "Click": "https://statsbynate.github.io",
+            },
+            timeout=5,
+        )
+        logger.info(f"Sent ntfy notification for {player} {dist} ft")
+    except Exception as e:
+        logger.warning(f"ntfy notification failed: {e}")
+
+
+def check_and_notify(new_data):
+    global _notified_blasts
+    for hr in new_data:
+        if not hr.get("distance") or hr["distance"] < MIN_DISTANCE:
+            continue
+        key = (hr["game_pk"], hr["player"])
+        if key not in _notified_blasts:
+            _notified_blasts.add(key)
+            send_ntfy_notification(hr)
+
+
+@app.route("/api/ntfy-channel")
+def ntfy_channel():
+    return jsonify({"channel": NTFY_CHANNEL})
+
+
 @app.route("/api/homeruns")
 def homeruns():
     global _cache
@@ -286,6 +335,7 @@ def homeruns():
         })
     try:
         data = fetch_all_homeruns()
+        check_and_notify(data)
         _cache = {"data": data, "ts": now}
         return jsonify({"homeruns": data, "count": len(data), "cached": False, "cache_age_seconds": 0})
     except Exception as e:
