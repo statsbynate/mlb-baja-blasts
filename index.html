@@ -41,6 +41,8 @@
     .refresh-btn:hover { background:#008f68; }
     .refresh-btn:active { transform:scale(0.97); }
     .refresh-btn:disabled { opacity:0.5;cursor:not-allowed; }
+    .subscribe-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;transition:background 0.15s,color 0.15s; }
+    .subscribe-btn:hover { background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow); }
     .main { padding:1.5rem 2rem;max-width:1200px;margin:0 auto; }
     .setup-panel { background:var(--bg2);border:1px solid var(--blue);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.5rem; }
     .setup-panel p { font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px; }
@@ -177,6 +179,10 @@
     <div class="live-badge"><div class="live-dot"></div>Live</div>
     <div class="auto-refresh-label">Auto-refresh in <span class="countdown" id="countdown">10:00</span></div>
     <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#127769; Dark</button>
+    <button class="subscribe-btn" onclick="subscribeNtfy()" title="Get push notifications for new Baja Blasts">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a5 5 0 0 1 5 5v2l1.5 2.5h-13L3 8V6a5 5 0 0 1 5-5zm-1 12h2"/></svg>
+      Subscribe
+    </button>
     <button class="refresh-btn" id="refresh-btn" onclick="loadData(true)">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/></svg>
       Refresh
@@ -347,6 +353,10 @@
     loadData(false);
     startCountdown();
   });
+
+  function subscribeNtfy() {
+    window.open('https://ntfy.sh/baja-blast-tracker-2026', '_blank');
+  }
 
   function toggleTheme() {
     const current = document.documentElement.getAttribute('data-theme');
