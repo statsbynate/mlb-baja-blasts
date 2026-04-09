@@ -16,6 +16,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 _cache = {"data": None, "ts": 0}
+_game_cache = {}  # game_pk -> list of HRs, permanently cached once fetched
+_savant_cache = {}  # game_pk -> savant lookup, permanently cached once fetched
 CACHE_TTL = 1800
 
 SEASON = "2026"
@@ -202,24 +204,31 @@ def fetch_all_homeruns(season=SEASON):
         return []
 
     all_hrs = []
+    games_to_fetch = [g for g in games if g["gamePk"] not in _game_cache]
+    logger.info(f"Fetching {len(games_to_fetch)} new games, {len(games) - len(games_to_fetch)} from cache")
 
     def fetch_game(game):
         try:
-            return fetch_homeruns_for_game(game)
+            return game["gamePk"], fetch_homeruns_for_game(game)
         except Exception as e:
             logger.warning(f"Game {game['gamePk']} error: {e}")
-            return []
+            return game["gamePk"], []
 
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(fetch_game, game): game for game in games}
+        futures = {executor.submit(fetch_game, game): game for game in games_to_fetch}
         for future in as_completed(futures):
-            all_hrs.extend(future.result())
+            gk, hrs = future.result()
+            _game_cache[gk] = hrs
+
+    for game in games:
+        all_hrs.extend(_game_cache.get(game["gamePk"], []))
 
     logger.info(f"Total HRs from MLB API: {len(all_hrs)}")
 
-    # Fetch all Savant game feeds in parallel
+    # Fetch Savant game feeds in parallel, skip already cached
     unique_pks = list({hr["game_pk"] for hr in all_hrs})
-    game_feed_cache = {}
+    pks_to_fetch = [gk for gk in unique_pks if gk not in _savant_cache]
+    logger.info(f"Fetching {len(pks_to_fetch)} new Savant feeds, {len(unique_pks) - len(pks_to_fetch)} from cache")
 
     def fetch_one(gk):
         try:
@@ -229,10 +238,12 @@ def fetch_all_homeruns(season=SEASON):
             return gk, {}
 
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(fetch_one, gk): gk for gk in unique_pks}
+        futures = {executor.submit(fetch_one, gk): gk for gk in pks_to_fetch}
         for future in as_completed(futures):
             gk, data = future.result()
-            game_feed_cache[gk] = data
+            _savant_cache[gk] = data
+
+    game_feed_cache = {gk: _savant_cache.get(gk, {}) for gk in unique_pks}
 
     results = []
     for hr in all_hrs:
