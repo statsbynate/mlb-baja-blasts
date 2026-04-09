@@ -4,6 +4,7 @@ import io
 import time
 import logging
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, jsonify
 from flask_cors import CORS
 import requests
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 _cache = {"data": None, "ts": 0}
-CACHE_TTL = 300
+CACHE_TTL = 1800
 
 SEASON = "2026"
 MIN_DISTANCE = 420
@@ -201,27 +202,42 @@ def fetch_all_homeruns(season=SEASON):
         return []
 
     all_hrs = []
-    for game in games:
+
+    def fetch_game(game):
         try:
-            hrs = fetch_homeruns_for_game(game)
-            all_hrs.extend(hrs)
+            return fetch_homeruns_for_game(game)
         except Exception as e:
             logger.warning(f"Game {game['gamePk']} error: {e}")
+            return []
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(fetch_game, game): game for game in games}
+        for future in as_completed(futures):
+            all_hrs.extend(future.result())
 
     logger.info(f"Total HRs from MLB API: {len(all_hrs)}")
 
+    # Fetch all Savant game feeds in parallel
+    unique_pks = list({hr["game_pk"] for hr in all_hrs})
     game_feed_cache = {}
+
+    def fetch_one(gk):
+        try:
+            return gk, fetch_savant_game_distances(gk)
+        except Exception as e:
+            logger.warning(f"Savant feed {gk} error: {e}")
+            return gk, {}
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(fetch_one, gk): gk for gk in unique_pks}
+        for future in as_completed(futures):
+            gk, data = future.result()
+            game_feed_cache[gk] = data
+
     results = []
     for hr in all_hrs:
         gk = hr["game_pk"]
-        if gk not in game_feed_cache:
-            try:
-                game_feed_cache[gk] = fetch_savant_game_distances(gk)
-            except Exception as e:
-                logger.warning(f"Savant feed {gk} error: {e}")
-                game_feed_cache[gk] = {}
-
-        game_lookup = game_feed_cache[gk]
+        game_lookup = game_feed_cache.get(gk, {})
         key = (hr["player"], hr["inning"])
         enriched = game_lookup.get(key)
 
