@@ -4,6 +4,8 @@ import io
 import time
 import logging
 import traceback
+import json
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -19,11 +21,13 @@ _cache = {"data": None, "ts": 0}
 _game_cache = {}  # game_pk -> list of HRs, permanently cached once fetched
 _savant_cache = {}  # game_pk -> savant lookup, permanently cached once fetched
 _notified_blasts = set()
+_fetch_in_progress = False
 CACHE_TTL = 1800
 
 SEASON = "2026"
 MIN_DISTANCE = 420
 NTFY_CHANNEL = "baja-blast-tracker-2026"
+CACHE_FILE = "/tmp/mlb_hr_cache.json"
 
 MLB_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
@@ -326,36 +330,75 @@ def ntfy_channel():
     return jsonify({"channel": NTFY_CHANNEL})
 
 
-@app.route("/api/homeruns")
-def homeruns():
-    global _cache
-    now = time.time()
-    if _cache["data"] is not None and (now - _cache["ts"]) < CACHE_TTL:
-        return jsonify({
-            "homeruns": _cache["data"],
-            "count": len(_cache["data"]),
-            "cached": True,
-            "cache_age_seconds": int(now - _cache["ts"]),
-        })
+def load_file_cache():
+    """Load cache from file — shared across threads/processes."""
+    try:
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        logger.warning(f"Cache file read error: {e}")
+    return None
+
+
+def save_file_cache(data):
+    """Save cache to file — visible to all threads/processes."""
+    try:
+        with open(CACHE_FILE, 'w') as f:
+            json.dump({"data": data, "ts": time.time()}, f)
+    except Exception as e:
+        logger.warning(f"Cache file write error: {e}")
+
+
+def background_fetch():
+    global _fetch_in_progress
+    if _fetch_in_progress:
+        return
+    _fetch_in_progress = True
     try:
         data = fetch_all_homeruns()
-        first_run = _cache["data"] is None
+        cached = load_file_cache()
+        first_run = cached is None
         check_and_notify(data, first_run=first_run)
-        _cache["data"] = data
-        _cache["ts"] = now
-        return jsonify({"homeruns": data, "count": len(data), "cached": False, "cache_age_seconds": 0})
+        save_file_cache(data)
+        logger.info(f"Background fetch complete: {len(data)} HRs")
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Background fetch error: {e}")
         logger.error(traceback.format_exc())
-        if _cache["data"] is not None:
-            return jsonify({
-                "homeruns": _cache["data"],
-                "count": len(_cache["data"]),
-                "cached": True,
-                "error": str(e),
-                "cache_age_seconds": int(now - _cache["ts"]),
-            })
-        return jsonify({"error": str(e), "homeruns": [], "count": 0}), 500
+    finally:
+        _fetch_in_progress = False
+
+
+@app.route("/api/homeruns")
+def homeruns():
+    now = time.time()
+    cached = load_file_cache()
+
+    # Trigger background refresh if cache is stale or missing
+    if not _fetch_in_progress:
+        if cached is None or (now - cached["ts"]) > CACHE_TTL:
+            t = threading.Thread(target=background_fetch, daemon=True)
+            t.start()
+
+    # Return cached data immediately if available
+    if cached is not None:
+        age = int(now - cached["ts"])
+        return jsonify({
+            "homeruns": cached["data"],
+            "count": len(cached["data"]),
+            "cached": True,
+            "cache_age_seconds": age,
+            "refreshing": _fetch_in_progress,
+        })
+
+    # No cache yet — tell frontend to retry
+    return jsonify({
+        "homeruns": [],
+        "count": 0,
+        "cached": False,
+        "loading": True,
+        "message": "Data is loading, please wait 60 seconds and refresh.",
+    })
 
 
 @app.route("/api/debug")
@@ -394,6 +437,11 @@ def debug():
 def health():
     return jsonify({"status": "ok"})
 
+
+# Pre-warm on startup
+_startup_thread = threading.Thread(target=background_fetch, daemon=True)
+_startup_thread.start()
+logger.info("Started background cache pre-warm on startup")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
