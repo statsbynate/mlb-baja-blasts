@@ -338,7 +338,8 @@ def background_fetch():
         data = fetch_all_homeruns()
         first_run = _cache["data"] is None
         check_and_notify(data, first_run=first_run)
-        _cache = {"data": data, "ts": now}
+        _cache["data"] = data
+        _cache["ts"] = now
         logger.info(f"Background fetch complete: {len(data)} HRs")
     except Exception as e:
         logger.error(f"Background fetch error: {e}")
