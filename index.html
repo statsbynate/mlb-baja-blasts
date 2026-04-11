@@ -1155,11 +1155,19 @@
     // Team chips
     const chips = document.getElementById('pepsi-team-chips');
     const allActive = pepsiTeamFilter === 'all';
-    chips.innerHTML = '<span class="pepsi-team-chip all-chip' + (allActive?' active':'') + '" onclick="setPepsiTeam('all')">All Partners</span>' +
-      PEPSI_TEAMS.map(t => {
-        const isActive = pepsiTeamFilter === t;
-        return '<span class="pepsi-team-chip' + (isActive?' active':'') + '" onclick="setPepsiTeam(\'' + t + '\')">' + t + ' ' + (PEPSI_TEAM_NAMES[t]||'') + '</span>';
-      }).join('');
+    chips.innerHTML = '';
+    const allChip = document.createElement('span');
+    allChip.className = 'pepsi-team-chip all-chip' + (allActive ? ' active' : '');
+    allChip.textContent = 'All Partners';
+    allChip.onclick = function() { setPepsiTeam('all'); };
+    chips.appendChild(allChip);
+    PEPSI_TEAMS.forEach(function(t) {
+      const chip = document.createElement('span');
+      chip.className = 'pepsi-team-chip' + (pepsiTeamFilter === t ? ' active' : '');
+      chip.textContent = t + ' ' + (PEPSI_TEAM_NAMES[t] || '');
+      chip.onclick = function() { setPepsiTeam(t); };
+      chips.appendChild(chip);
+    });
 
     // All partner HRs filtered by selected team
     const allPartnerHRs = pepsiTeamFilter === 'all' ? allHRs.filter(h => PEPSI_TEAMS.includes(h.team)) : allHRs.filter(h => h.team === pepsiTeamFilter);
