@@ -534,7 +534,7 @@
         errArea.innerHTML = '<div class="error-msg" style="color:var(--amber);">&#9203; Data is loading for the first time &mdash; please wait about 60 seconds and click Refresh.</div>';
         btn.disabled = false;
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13.5 8a5.5 5.5 0 1 1-1.1-3.3M13.5 2v3h-3"/></svg> Refresh';
-        setTimeout(() => loadData(false), 20000);
+        setTimeout(() => loadData(false), 5000);
         return;
       }
       if (json.error && (!json.homeruns || json.homeruns.length === 0)) throw new Error(json.error);
