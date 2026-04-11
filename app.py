@@ -435,6 +435,11 @@ def health():
     return jsonify({"status": "ok"})
 
 
+# Pre-warm cache on startup so first request is never slow
+_startup_thread = threading.Thread(target=background_fetch, daemon=True)
+_startup_thread.start()
+logger.info("Started background cache pre-warm on startup")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
