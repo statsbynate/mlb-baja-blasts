@@ -43,8 +43,8 @@
     .refresh-btn:disabled { opacity:0.5;cursor:not-allowed; }
     .subscribe-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;transition:background 0.15s,color 0.15s; }
     .subscribe-btn:hover { background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow); }
-    .pepsi-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid rgba(255,255,255,0.3);border-radius:var(--radius);color:#ffffff;font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;font-weight:600;transition:background 0.15s; }
-    .pepsi-btn:hover { background:rgba(255,255,255,0.1); }
+    .pepsi-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid rgba(0,75,147,0.6);border-radius:var(--radius);color:#004B93;font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;font-weight:600;transition:background 0.15s; }
+    .pepsi-btn:hover { background:rgba(0,75,147,0.1); }
     .main { padding:1.5rem 2rem;max-width:1200px;margin:0 auto; }
     .setup-panel { background:var(--bg2);border:1px solid var(--blue);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.5rem; }
     .setup-panel p { font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px; }
@@ -183,7 +183,11 @@
     .pepsi-back:hover { background:rgba(255,255,255,0.1); }
     .pepsi-main { padding:1.5rem 2rem;max-width:1200px;margin:0 auto; }
     .pepsi-teams { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem; }
-    .pepsi-team-chip { font-family:Barlow Condensed,sans-serif;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(0,75,147,0.4);border:1px solid rgba(0,75,147,0.8);color:#7ab3e8;letter-spacing:0.5px; }
+    .pepsi-team-chip { font-family:Barlow Condensed,sans-serif;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(0,75,147,0.4);border:1px solid rgba(0,75,147,0.8);color:#7ab3e8;letter-spacing:0.5px;cursor:pointer;transition:background 0.15s,color 0.15s; }
+    .pepsi-team-chip:hover { background:rgba(0,75,147,0.7);color:#fff; }
+    .pepsi-team-chip.active { background:#004B93;color:#fff;border-color:#004B93; }
+    .pepsi-team-chip.all-chip { background:rgba(227,0,27,0.2);border-color:rgba(227,0,27,0.6);color:#E3001B; }
+    .pepsi-team-chip.all-chip.active { background:#E3001B;color:#fff;border-color:#E3001B; }
     .pepsi-stat-card { background:#001f4d;border:1px solid rgba(0,75,147,0.4);border-radius:12px;padding:1rem 1.25rem;position:relative;overflow:hidden; }
     .pepsi-stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;background:#004B93; }
     .pepsi-stat-card.red::before { background:#E3001B; }
@@ -391,19 +395,26 @@
     </header>
     <div class="pepsi-main">
       <div class="pepsi-teams" id="pepsi-team-chips"></div>
-      <div class="stats-grid" style="margin-bottom:1.5rem;" id="pepsi-stats-grid">
+      <div class="stats-grid" style="margin-bottom:1rem;grid-template-columns:repeat(3,minmax(0,1fr));">
         <div class="pepsi-stat-card red">
-          <div class="pepsi-stat-label">Pepsi Blasts</div>
+          <div class="pepsi-stat-label">Pepsi Baja Blasts</div>
           <div class="pepsi-stat-value" id="pepsi-stat-total">&#8212;</div>
-          <div class="pepsi-stat-sub">420+ ft verified</div>
+          <div class="pepsi-stat-sub">420+ ft by partner teams</div>
+        </div>
+        <div class="pepsi-stat-card">
+          <div class="pepsi-stat-label">Total Partner HRs</div>
+          <div class="pepsi-stat-value" id="pepsi-stat-allhrs">&#8212;</div>
+          <div class="pepsi-stat-sub">all home runs this season</div>
         </div>
         <div class="pepsi-stat-card">
           <div class="pepsi-stat-label">Longest Blast</div>
           <div class="pepsi-stat-value" id="pepsi-stat-longest">&#8212;</div>
           <div class="pepsi-stat-sub" id="pepsi-stat-longest-by">&#8212;</div>
         </div>
+      </div>
+      <div class="stats-grid" style="margin-bottom:1.5rem;grid-template-columns:repeat(3,minmax(0,1fr));">
         <div class="pepsi-stat-card">
-          <div class="pepsi-stat-label">Top Team</div>
+          <div class="pepsi-stat-label">Top Team (Blasts)</div>
           <div class="pepsi-stat-value" id="pepsi-stat-team">&#8212;</div>
           <div class="pepsi-stat-sub" id="pepsi-stat-team-count">&#8212;</div>
         </div>
@@ -411,6 +422,11 @@
           <div class="pepsi-stat-label">Top Player</div>
           <div class="pepsi-stat-value" id="pepsi-stat-player">&#8212;</div>
           <div class="pepsi-stat-sub" id="pepsi-stat-player-count">&#8212;</div>
+        </div>
+        <div class="pepsi-stat-card red">
+          <div class="pepsi-stat-label">Blast Rate</div>
+          <div class="pepsi-stat-value" id="pepsi-stat-rate">&#8212;</div>
+          <div class="pepsi-stat-sub">% of HRs that are Baja Blasts</div>
         </div>
       </div>
 
@@ -421,8 +437,8 @@
 
       <div class="pepsi-table-wrap">
         <table>
-          <thead><tr><th>#</th><th>Player</th><th>Team</th><th>Distance</th><th>Exit velo</th><th>Launch angle</th><th>Date</th><th>Opp</th><th>Inn</th></tr></thead>
-          <tbody id="pepsi-tbody"><tr><td colspan="9" style="text-align:center;padding:3rem;color:#4a7ab5;">Loading...</td></tr></tbody>
+          <thead><tr><th>#</th><th>Player</th><th>Team</th><th>Distance</th><th>Exit velo</th><th>Launch angle</th><th>Date</th><th>Opp</th><th>Inn</th><th></th></tr></thead>
+          <tbody id="pepsi-tbody"><tr><td colspan="10" style="text-align:center;padding:3rem;color:#4a7ab5;">Loading...</td></tr></tbody>
         </table>
       </div>
       <div class="pepsi-footer">
@@ -1125,21 +1141,39 @@
     window.scrollTo(0,0);
   }
 
+  let pepsiTeamFilter = 'all';
+
+  function setPepsiTeam(team) {
+    pepsiTeamFilter = team;
+    renderPepsiPage();
+  }
+
   function renderPepsiPage() {
-    const blasts = allHRs.filter(h => h.distance && h.distance >= 420 && PEPSI_TEAMS.includes(h.team));
+    const allPartnerBlasts = allHRs.filter(h => h.distance && h.distance >= 420 && PEPSI_TEAMS.includes(h.team));
+    const blasts = pepsiTeamFilter === 'all' ? allPartnerBlasts : allPartnerBlasts.filter(h => h.team === pepsiTeamFilter);
 
     // Team chips
     const chips = document.getElementById('pepsi-team-chips');
-    chips.innerHTML = PEPSI_TEAMS.map(t =>
-      '<span class="pepsi-team-chip">' + t + ' ' + (PEPSI_TEAM_NAMES[t]||'') + '</span>'
-    ).join('');
+    const allActive = pepsiTeamFilter === 'all';
+    chips.innerHTML = '<span class="pepsi-team-chip all-chip' + (allActive?' active':'') + '" onclick="setPepsiTeam('all')">All Partners</span>' +
+      PEPSI_TEAMS.map(t => {
+        const isActive = pepsiTeamFilter === t;
+        return '<span class="pepsi-team-chip' + (isActive?' active':'') + '" onclick="setPepsiTeam(\'' + t + '\')">' + t + ' ' + (PEPSI_TEAM_NAMES[t]||'') + '</span>';
+      }).join('');
+
+    // All partner HRs filtered by selected team
+    const allPartnerHRs = pepsiTeamFilter === 'all' ? allHRs.filter(h => PEPSI_TEAMS.includes(h.team)) : allHRs.filter(h => h.team === pepsiTeamFilter);
 
     // Stats
     document.getElementById('pepsi-stat-total').textContent = blasts.length || '—';
+    document.getElementById('pepsi-stat-allhrs').textContent = allPartnerHRs.length || '—';
+
     if (blasts.length > 0) {
       const longest = blasts.reduce((a,b) => b.distance > a.distance ? b : a);
       document.getElementById('pepsi-stat-longest').textContent = longest.distance + ' ft';
       document.getElementById('pepsi-stat-longest-by').textContent = longest.player;
+      const rate = allPartnerHRs.length > 0 ? ((blasts.length / allPartnerHRs.length) * 100).toFixed(1) + '%' : '—';
+      document.getElementById('pepsi-stat-rate').textContent = rate;
     }
 
     const teamCounts = {};
@@ -1198,7 +1232,7 @@
     // Table
     const tbody = document.getElementById('pepsi-tbody');
     if (blasts.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:3rem;color:#4a7ab5;">No Pepsi partner Baja Blasts yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:3rem;color:#4a7ab5;">No Pepsi partner Baja Blasts yet.</td></tr>';
       return;
     }
     const sorted = [...blasts].sort((a,b) => (b.distance||0)-(a.distance||0));
@@ -1218,6 +1252,7 @@
         '<td>' + dateStr + '</td>' +
         '<td><span style="font-family:Barlow Condensed,sans-serif;font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;background:rgba(0,75,147,0.3);border:1px solid rgba(0,75,147,0.6);color:#7ab3e8;">' + (h.opponent||'—') + '</span></td>' +
         '<td>' + (h.inning||'—') + '</td>' +
+        '<td>' + videoBtn + '</td>' +
       '</tr>';
     }).join('');
   }
