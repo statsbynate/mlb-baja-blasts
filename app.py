@@ -309,7 +309,7 @@ def send_ntfy_notification(hr):
         logger.warning(f"ntfy notification failed: {e}")
 
 
-def check_and_notify(new_data):
+def check_and_notify(new_data, first_run=False):
     global _notified_blasts
     for hr in new_data:
         if not hr.get("distance") or hr["distance"] < MIN_DISTANCE:
@@ -317,7 +317,10 @@ def check_and_notify(new_data):
         key = (hr["game_pk"], hr["player"])
         if key not in _notified_blasts:
             _notified_blasts.add(key)
-            send_ntfy_notification(hr)
+            if not first_run:
+                send_ntfy_notification(hr)
+    if first_run:
+        logger.info(f"First run: pre-populated {len(_notified_blasts)} known Baja Blasts, no notifications sent")
 
 
 @app.route("/api/ntfy-channel")
@@ -333,7 +336,8 @@ def background_fetch():
     try:
         now = time.time()
         data = fetch_all_homeruns()
-        check_and_notify(data)
+        first_run = _cache["data"] is None
+        check_and_notify(data, first_run=first_run)
         _cache = {"data": data, "ts": now}
         logger.info(f"Background fetch complete: {len(data)} HRs")
     except Exception as e:
