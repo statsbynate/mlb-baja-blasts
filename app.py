@@ -231,10 +231,12 @@ def fetch_all_homeruns(season=SEASON):
 
     logger.info(f"Total HRs from MLB API: {len(all_hrs)}")
 
-    # Fetch Savant game feeds in parallel, skip already cached
+    # Fetch Savant game feeds in parallel
+    # Retry games with 0 distances in case Statcast has since updated them
     unique_pks = list({hr["game_pk"] for hr in all_hrs})
-    pks_to_fetch = [gk for gk in unique_pks if gk not in _savant_cache]
-    logger.info(f"Fetching {len(pks_to_fetch)} new Savant feeds, {len(unique_pks) - len(pks_to_fetch)} from cache")
+    pks_to_fetch = [gk for gk in unique_pks if gk not in _savant_cache or len(_savant_cache[gk]) == 0]
+    cached_count = len(unique_pks) - len(pks_to_fetch)
+    logger.info(f"Fetching {len(pks_to_fetch)} Savant feeds ({cached_count} cached, retrying 0-distance games)")
 
     def fetch_one(gk):
         try:
