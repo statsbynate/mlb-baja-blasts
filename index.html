@@ -183,7 +183,7 @@
     .pepsi-back:hover { background:rgba(255,255,255,0.1); }
     .pepsi-main { padding:1.5rem 2rem;max-width:1200px;margin:0 auto; }
     .pepsi-teams { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem; }
-    .pepsi-team-chip { font-family:Barlow Condensed,sans-serif;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(0,75,147,0.4);border:1px solid rgba(0,75,147,0.8);color:#7ab3e8;letter-spacing:0.5px;cursor:pointer;transition:background 0.15s,color 0.15s; }
+    .pepsi-team-chip { font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;padding:8px 16px;border-radius:999px;background:rgba(0,75,147,0.4);border:1px solid rgba(0,75,147,0.8);color:#7ab3e8;letter-spacing:0.5px;cursor:pointer;transition:background 0.15s,color 0.15s; }
     .pepsi-team-chip:hover { background:rgba(0,75,147,0.7);color:#fff; }
     .pepsi-team-chip.active { background:#004B93;color:#fff;border-color:#004B93; }
     .pepsi-team-chip.all-chip { background:rgba(227,0,27,0.2);border-color:rgba(227,0,27,0.6);color:#E3001B; }
@@ -419,7 +419,7 @@
       </div>
       <div class="stats-grid" style="margin-bottom:1.5rem;grid-template-columns:repeat(3,minmax(0,1fr));">
         <div class="pepsi-stat-card">
-          <div class="pepsi-stat-label">Top Team (Blasts)</div>
+          <div class="pepsi-stat-label" id="pepsi-stat-team-label">Top Team</div>
           <div class="pepsi-stat-value" id="pepsi-stat-team">&#8212;</div>
           <div class="pepsi-stat-sub" id="pepsi-stat-team-count">&#8212;</div>
         </div>
@@ -1200,12 +1200,25 @@
       document.getElementById('pepsi-stat-rate').textContent = rate;
     }
 
-    const teamCounts = {};
-    blasts.forEach(h => { teamCounts[h.team] = (teamCounts[h.team]||0)+1; });
-    const topTeam = Object.entries(teamCounts).sort((a,b)=>b[1]-a[1])[0];
-    if (topTeam) {
-      document.getElementById('pepsi-stat-team').textContent = topTeam[0];
-      document.getElementById('pepsi-stat-team-count').textContent = topTeam[1] + ' blasts';
+    if (pepsiTeamFilter === 'all') {
+      const teamCounts = {};
+      blasts.forEach(h => { teamCounts[h.team] = (teamCounts[h.team]||0)+1; });
+      const topTeam = Object.entries(teamCounts).sort((a,b)=>b[1]-a[1])[0];
+      document.getElementById('pepsi-stat-team-label').textContent = 'Top Team';
+      if (topTeam) {
+        document.getElementById('pepsi-stat-team').textContent = topTeam[0];
+        document.getElementById('pepsi-stat-team-count').textContent = topTeam[1] + ' blasts';
+      }
+    } else {
+      // Show top player for selected team
+      const teamPlayerCounts = {};
+      blasts.forEach(h => { teamPlayerCounts[h.player] = (teamPlayerCounts[h.player]||0)+1; });
+      const topTeamPlayer = Object.entries(teamPlayerCounts).sort((a,b)=>b[1]-a[1])[0];
+      document.getElementById('pepsi-stat-team-label').textContent = 'Top Player';
+      if (topTeamPlayer) {
+        document.getElementById('pepsi-stat-team').textContent = topTeamPlayer[0].split(' ').pop();
+        document.getElementById('pepsi-stat-team-count').textContent = topTeamPlayer[1] + ' blast' + (topTeamPlayer[1]!==1?'s':'');
+      }
     }
 
     const playerCounts = {};
