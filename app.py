@@ -433,6 +433,19 @@ def debug():
     return jsonify(result)
 
 
+@app.route("/api/status")
+def status():
+    """Fast status check - no external calls."""
+    cached = load_file_cache()
+    return jsonify({
+        "cache_exists": cached is not None,
+        "cache_age_seconds": int(time.time() - cached["ts"]) if cached else None,
+        "hr_count": len(cached["data"]) if cached else 0,
+        "fetch_in_progress": _fetch_in_progress,
+        "cache_file_exists": os.path.exists(CACHE_FILE),
+    })
+
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
