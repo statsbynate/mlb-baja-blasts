@@ -338,7 +338,12 @@
       <input class="search-input" type="text" id="search-input" placeholder="Search player..." oninput="renderTable()" />
     </div>
     <select class="filter-select" id="team-filter" onchange="renderTable()"><option value="">All teams</option></select>
-    <select class="filter-select" id="date-filter" onchange="renderTable()"><option value="">All dates</option></select>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <input type="date" class="filter-select" id="date-from" onchange="renderTable()" title="From date" style="padding:7px 10px;font-size:12px;" />
+      <span style="color:var(--text3);font-size:12px;">to</span>
+      <input type="date" class="filter-select" id="date-to" onchange="renderTable()" title="To date" style="padding:7px 10px;font-size:12px;" />
+      <button onclick="clearDateRange()" style="padding:7px 10px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text3);font-size:12px;cursor:pointer;" title="Clear dates">&#10005;</button>
+    </div>
     <select class="filter-select" id="sort-select" onchange="renderTable()">
       <option value="baja-first">Baja Blasts first</option>
       <option value="date-desc">Date (newest first)</option>
@@ -397,7 +402,7 @@
       <div class="pepsi-teams" id="pepsi-team-chips"></div>
       <div class="stats-grid" style="margin-bottom:1rem;grid-template-columns:repeat(3,minmax(0,1fr));">
         <div class="pepsi-stat-card red">
-          <div class="pepsi-stat-label">Total Partner Baja Blasts</div>
+          <div class="pepsi-stat-label">Pepsi Baja Blasts</div>
           <div class="pepsi-stat-value" id="pepsi-stat-total">&#8212;</div>
           <div class="pepsi-stat-sub">420+ ft by partner teams</div>
         </div>
@@ -588,24 +593,31 @@
     const teamSel = document.getElementById('team-filter');
     const cur = teamSel.value;
     teamSel.innerHTML = '<option value="">All teams</option>' + teams.map(t => '<option value="' + t + '"' + (t===cur?' selected':'') + '>' + t + '</option>').join('');
-    const dateSel = document.getElementById('date-filter');
-    const curD = dateSel.value;
-    dateSel.innerHTML = '<option value="">All dates</option>' + dates.map(d => {
-      let label = d;
-      try { label = new Date(d + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); } catch(e) {}
-      return '<option value="' + d + '"' + (d===curD?' selected':'') + '>' + label + '</option>';
-    }).join('');
+    // Set min/max on date pickers based on available data
+    if (dates.length > 0) {
+      const OPENING_DAY = '2026-03-26';
+      const maxDate = dates[0];
+      document.getElementById('date-from').min = OPENING_DAY;
+      document.getElementById('date-from').max = maxDate;
+      document.getElementById('date-to').min = OPENING_DAY;
+      document.getElementById('date-to').max = maxDate;
+      if (!document.getElementById('date-to').value) {
+        document.getElementById('date-to').value = maxDate;
+      }
+    }
   }
 
   function renderTable() {
     const search = document.getElementById('search-input').value.toLowerCase().trim();
     const teamFilter = document.getElementById('team-filter').value;
-    const dateFilter = document.getElementById('date-filter').value;
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
     const sort = document.getElementById('sort-select').value;
     let rows = allHRs.filter(h => {
       if (search && !h.player.toLowerCase().includes(search) && !h.team.toLowerCase().includes(search)) return false;
       if (teamFilter && h.team !== teamFilter) return false;
-      if (dateFilter && h.date !== dateFilter) return false;
+      if (dateFrom && h.date < dateFrom) return false;
+      if (dateTo && h.date > dateTo) return false;
       if (bajaOnly && !(h.distance && h.distance >= 420)) return false;
       return true;
     });
@@ -939,6 +951,12 @@
     });
   }
 
+  function clearDateRange() {
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
+    renderTable();
+  }
+
   function toggleBlast() {
     bajaOnly = !bajaOnly;
     document.getElementById('blast-toggle').classList.toggle('active', bajaOnly);
@@ -1064,12 +1082,15 @@
     const teal=[0,180,130],dark=[5,26,20],mid=[30,120,88],light=[212,245,234],white=[255,255,255],gray=[100,140,120];
     const search=document.getElementById('search-input').value.trim();
     const teamFilter=document.getElementById('team-filter').value;
-    const dateFilter=document.getElementById('date-filter').value;
+    const dateFrom=document.getElementById('date-from').value;
+    const dateTo=document.getElementById('date-to').value;
+    const dateFilter=dateFrom||dateTo ? (dateFrom||'start')+' to '+(dateTo||'end') : '';
     const sort=document.getElementById('sort-select').value;
     let rows=allHRs.filter(h=>{
       if(search&&!h.player.toLowerCase().includes(search.toLowerCase())&&!h.team.toLowerCase().includes(search.toLowerCase()))return false;
       if(teamFilter&&h.team!==teamFilter)return false;
-      if(dateFilter&&h.date!==dateFilter)return false;
+      if(dateFrom&&h.date<dateFrom)return false;
+      if(dateTo&&h.date>dateTo)return false;
       if(bajaOnly&&!(h.distance&&h.distance>=420))return false;
       return true;
     });
@@ -1092,7 +1113,7 @@
     y=36;
     const filters=[];
     if(teamFilter)filters.push('Team: '+teamFilter);
-    if(dateFilter){let d=dateFilter;try{d=new Date(dateFilter+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});}catch(e){}filters.push('Date: '+d);}
+    if(dateFrom||dateTo){filters.push('Date: '+(dateFrom||'start')+' to '+(dateTo||'end'));}
     if(search)filters.push('Search: "'+search+'"');
     filters.push('Sort: '+sort.replace('-',' '));
     if(filters.length>0){doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...gray);doc.text('Filters: '+filters.join('  \u00b7  '),margin,y);y+=7;}
@@ -1119,7 +1140,7 @@
     });
     const totalPages=doc.getNumberOfPages();
     for(let p=1;p<=totalPages;p++){doc.setPage(p);doc.setFillColor(...dark);doc.rect(0,290,W,7,'F');doc.setTextColor(...mid);doc.setFontSize(7);doc.setFont('helvetica','normal');doc.text('Baja Blast Tracker 2026  \u2022  Sources: MLB Stats API + Baseball Savant (Statcast)',margin,295);doc.text('Page '+p+' of '+totalPages,W-margin,295,{align:'right'});}
-    const datePart=dateFilter||now.toISOString().split('T')[0];
+    const datePart=(dateFrom||dateTo)?(dateFrom||'start')+'-'+(dateTo||'end'):now.toISOString().split('T')[0];
     const teamPart=teamFilter?'-'+teamFilter:'';
     doc.save('baja-blast-report'+teamPart+'-'+datePart+'.pdf');
   }
