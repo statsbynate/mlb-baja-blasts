@@ -402,7 +402,7 @@
       <div class="pepsi-teams" id="pepsi-team-chips"></div>
       <div class="stats-grid" style="margin-bottom:1rem;grid-template-columns:repeat(3,minmax(0,1fr));">
         <div class="pepsi-stat-card red">
-          <div class="pepsi-stat-label">Team Partner Baja Blasts</div>
+          <div class="pepsi-stat-label">Pepsi Baja Blasts</div>
           <div class="pepsi-stat-value" id="pepsi-stat-total">&#8212;</div>
           <div class="pepsi-stat-sub">420+ ft by partner teams</div>
         </div>
@@ -433,11 +433,6 @@
           <div class="pepsi-stat-value" id="pepsi-stat-rate">&#8212;</div>
           <div class="pepsi-stat-sub">% of HRs that are Baja Blasts</div>
         </div>
-      </div>
-
-      <div class="pepsi-card" style="margin-bottom:1.5rem;">
-        <div class="pepsi-card-title">Player leaderboard</div>
-        <div id="pepsi-lb-players"><div style="text-align:center;padding:1.5rem;font-size:13px;color:#4a7ab5;">No data yet.</div></div>
       </div>
 
       <div class="pepsi-table-wrap">
@@ -1221,24 +1216,8 @@
       document.getElementById('pepsi-stat-player-count').textContent = topPlayer[1] + ' blasts';
     }
 
-    // Player leaderboard
-    const playerMap = {};
-    blasts.forEach(h => {
-      if (!playerMap[h.player]) playerMap[h.player] = { player:h.player, team:h.team, count:0, longest:0 };
-      playerMap[h.player].count++;
-      if (h.distance > playerMap[h.player].longest) playerMap[h.player].longest = h.distance;
-    });
-    const players = Object.values(playerMap).sort((a,b)=>b.count-a.count||b.longest-a.longest).slice(0,10);
     const pepsiRankColors = ['#E3001B','#7ab3e8','#4a7ab5'];
     const pepsiRankLabel = (i) => '<span style="font-family:Barlow+Condensed,sans-serif;font-size:13px;color:' + (pepsiRankColors[i]||'#4a7ab5') + ';width:20px;flex-shrink:0;display:inline-block;">' + (i+1) + '</span>';
-
-    const plEl = document.getElementById('pepsi-lb-players');
-    plEl.innerHTML = players.length === 0 ? '<div style="text-align:center;padding:1.5rem;color:#4a7ab5;">No data yet.</div>' :
-      players.map((p,i) => '<div class="pepsi-lb-row">' + pepsiRankLabel(i) +
-        '<span style="flex:1;font-size:13px;font-weight:500;color:#c5d8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + p.player + '</span>' +
-        '<span style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:600;padding:1px 6px;border-radius:3px;background:rgba(0,75,147,0.3);border:1px solid rgba(0,75,147,0.6);color:#7ab3e8;flex-shrink:0;">' + p.team + '</span>' +
-        '<span style="font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;color:#E3001B;min-width:60px;text-align:right;">' + p.count + ' blast' + (p.count!==1?'s':'') + '</span>' +
-      '</div>').join('');
 
     // Pitcher victims
     const pitcherMap = {};
