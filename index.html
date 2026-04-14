@@ -464,9 +464,11 @@
     const teamSel = document.getElementById('team-filter'), cur = teamSel.value;
     teamSel.innerHTML = '<option value="">All teams</option>' + teams.map(t => '<option value="' + t + '"' + (t===cur?' selected':'') + '>' + t + '</option>').join('');
     if (dates.length > 0) {
-      const OPENING_DAY = '2026-03-26', maxDate = dates[0];
-      document.getElementById('date-from').min = OPENING_DAY; document.getElementById('date-from').max = maxDate;
-      document.getElementById('date-to').min = OPENING_DAY; document.getElementById('date-to').max = maxDate;
+      const OPENING_DAY = '2026-03-26';
+      const today = new Date().toISOString().split('T')[0];
+      const maxDate = dates[0];
+      document.getElementById('date-from').min = OPENING_DAY; document.getElementById('date-from').max = today;
+      document.getElementById('date-to').min = OPENING_DAY; document.getElementById('date-to').max = today;
       if (!document.getElementById('date-to').value) document.getElementById('date-to').value = maxDate;
     }
   }
