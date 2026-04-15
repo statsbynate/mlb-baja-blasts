@@ -22,7 +22,7 @@ _game_cache = {}  # game_pk -> list of HRs, permanently cached once fetched
 _savant_cache = {}  # game_pk -> savant lookup, permanently cached once fetched
 _notified_blasts = set()
 _fetch_in_progress = False
-CACHE_TTL = 1800
+CACHE_TTL = 600
 
 SEASON = "2026"
 MIN_DISTANCE = 420
