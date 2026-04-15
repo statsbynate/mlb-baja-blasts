@@ -352,11 +352,23 @@ def save_file_cache(data):
         logger.warning(f"Cache file write error: {e}")
 
 
+# Max time a background fetch is allowed to run before being force-reset
+FETCH_TIMEOUT = 300  # 5 minutes
+
+_fetch_started_at = None
+
 def background_fetch():
-    global _fetch_in_progress
+    global _fetch_in_progress, _fetch_started_at
     if _fetch_in_progress:
-        return
+        # Safety valve: if fetch has been running > FETCH_TIMEOUT, reset it
+        if _fetch_started_at and (time.time() - _fetch_started_at) > FETCH_TIMEOUT:
+            logger.warning(f"Background fetch stuck for {FETCH_TIMEOUT}s, force-resetting")
+            _fetch_in_progress = False
+            _fetch_started_at = None
+        else:
+            return
     _fetch_in_progress = True
+    _fetch_started_at = time.time()
     try:
         data = fetch_all_homeruns()
         cached = load_file_cache()
@@ -369,6 +381,7 @@ def background_fetch():
         logger.error(traceback.format_exc())
     finally:
         _fetch_in_progress = False
+        _fetch_started_at = None
 
 
 @app.route("/api/homeruns")
