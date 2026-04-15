@@ -367,16 +367,20 @@ FETCH_TIMEOUT = 300  # 5 minutes
 
 _fetch_started_at = None
 
+def check_stuck_fetch():
+    """Reset fetch_in_progress if stuck longer than FETCH_TIMEOUT. Call from any route."""
+    global _fetch_in_progress, _fetch_started_at
+    if _fetch_in_progress and _fetch_started_at and (time.time() - _fetch_started_at) > FETCH_TIMEOUT:
+        logger.warning(f"Watchdog: fetch stuck for >{FETCH_TIMEOUT}s, force-resetting")
+        _fetch_in_progress = False
+        _fetch_started_at = None
+
+
 def background_fetch():
     global _fetch_in_progress, _fetch_started_at
+    check_stuck_fetch()
     if _fetch_in_progress:
-        # Safety valve: if fetch has been running > FETCH_TIMEOUT, reset it
-        if _fetch_started_at and (time.time() - _fetch_started_at) > FETCH_TIMEOUT:
-            logger.warning(f"Background fetch stuck for {FETCH_TIMEOUT}s, force-resetting")
-            _fetch_in_progress = False
-            _fetch_started_at = None
-        else:
-            return
+        return
     _fetch_in_progress = True
     _fetch_started_at = time.time()
     try:
@@ -473,6 +477,14 @@ def status():
 
 @app.route("/health")
 def health():
+    # Watchdog: reset stuck fetch and trigger refresh if cache is stale
+    check_stuck_fetch()
+    now = time.time()
+    cached = load_file_cache()
+    if not _fetch_in_progress and (cached is None or (now - cached["ts"]) > CACHE_TTL):
+        logger.info("Health check triggered background refresh (cache stale)")
+        t = threading.Thread(target=background_fetch, daemon=True)
+        t.start()
     return jsonify({"status": "ok"})
 
 
