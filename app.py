@@ -222,9 +222,14 @@ def fetch_all_homeruns(season=SEASON):
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         futures = {executor.submit(fetch_game, game): game for game in games_to_fetch}
-        for future in as_completed(futures):
-            gk, hrs = future.result()
-            _game_cache[gk] = hrs
+        for future in as_completed(futures, timeout=120):
+            try:
+                gk, hrs = future.result(timeout=20)
+                _game_cache[gk] = hrs
+            except Exception as e:
+                game = futures[future]
+                logger.warning(f"Game fetch {game.get('gamePk')} timed out: {e}")
+                _game_cache[game["gamePk"]] = []
 
     for game in games:
         all_hrs.extend(_game_cache.get(game["gamePk"], []))
@@ -247,9 +252,14 @@ def fetch_all_homeruns(season=SEASON):
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         futures = {executor.submit(fetch_one, gk): gk for gk in pks_to_fetch}
-        for future in as_completed(futures):
-            gk, data = future.result()
-            _savant_cache[gk] = data
+        for future in as_completed(futures, timeout=120):
+            try:
+                gk, data = future.result(timeout=20)
+                _savant_cache[gk] = data
+            except Exception as e:
+                gk = futures[future]
+                logger.warning(f"Savant fetch {gk} timed out: {e}")
+                _savant_cache[gk] = {}
 
     game_feed_cache = {gk: _savant_cache.get(gk, {}) for gk in unique_pks}
 
