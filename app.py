@@ -283,9 +283,22 @@ def fetch_all_homeruns(season=SEASON):
 
         results.append(hr)
 
-    baja = [h for h in results if h.get("distance") and h["distance"] >= MIN_DISTANCE]
-    sub = [h for h in results if h.get("distance") and h["distance"] < MIN_DISTANCE]
-    pending = [h for h in results if not h.get("distance")]
+    # Deduplicate by play_id (fall back to player+game_pk+inning for entries with no play_id)
+    seen = set()
+    deduped = []
+    for hr in results:
+        pid = hr.get("play_id", "").strip()
+        if pid:
+            key = pid
+        else:
+            key = f"{hr['player']}|{hr['game_pk']}|{hr['inning']}|{hr['inning_half']}"
+        if key not in seen:
+            seen.add(key)
+            deduped.append(hr)
+
+    baja = [h for h in deduped if h.get("distance") and h["distance"] >= MIN_DISTANCE]
+    sub = [h for h in deduped if h.get("distance") and h["distance"] < MIN_DISTANCE]
+    pending = [h for h in deduped if not h.get("distance")]
     baja.sort(key=lambda x: x["distance"], reverse=True)
     sub.sort(key=lambda x: x["distance"], reverse=True)
     return baja + sub + pending
