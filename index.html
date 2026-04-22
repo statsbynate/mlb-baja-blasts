@@ -44,6 +44,8 @@
     .subscribe-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;transition:background 0.15s,color 0.15s; }
     .subscribe-btn:hover { background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow); }
     .pepsi-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid rgba(0,75,147,0.6);border-radius:var(--radius);color:#004B93;font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;font-weight:600;transition:background 0.15s; }
+    .predict-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid rgba(247,197,0,0.4);border-radius:var(--radius);color:var(--yellow);font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;font-weight:600;transition:background 0.15s; }
+    .predict-btn:hover { background:var(--yellow-bg); }
     .bingo-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--accent);font-size:13px;font-family:"Barlow",sans-serif;cursor:pointer;font-weight:600;transition:background 0.15s,color 0.15s; }
     .bingo-btn:hover { background:var(--green-bg); }
     .pepsi-btn:hover { background:rgba(0,75,147,0.1); }
@@ -156,6 +158,34 @@
     .spray-tooltip strong { color:var(--accent);display:block;font-size:12px; }
     .spray-legend { display:flex;gap:16px;font-size:11px;color:var(--text3);margin-top:8px;flex-wrap:wrap; }
     .spray-legend-item { display:flex;align-items:center;gap:5px; }
+    #predict-page { display:none; }
+    #predict-page.active { display:block; }
+    .predict-body { min-height:100vh;background:var(--bg);padding-bottom:3rem; }
+    .predict-header { background:var(--bg2);border-bottom:1px solid var(--border);padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between; }
+    .predict-title { font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:700;color:var(--yellow);letter-spacing:0.5px; }
+    .predict-title span { color:var(--text2);font-size:13px;font-weight:400;margin-left:10px;font-family:"Barlow",sans-serif; }
+    .predict-back { padding:7px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-size:13px;cursor:pointer;font-family:"Barlow",sans-serif;transition:background 0.15s; }
+    .predict-back:hover { background:var(--bg3);color:var(--text); }
+    .predict-main { max-width:900px;margin:0 auto;padding:1.5rem 2rem; }
+    .predict-meta { font-size:12px;color:var(--text3);margin-bottom:1.25rem; }
+    .predict-cards { display:flex;flex-direction:column;gap:12px; }
+    .predict-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;display:grid;grid-template-columns:2.5rem 1fr auto;gap:1rem;align-items:center; }
+    .predict-rank { font-family:Barlow Condensed,sans-serif;font-size:28px;font-weight:700;color:var(--text3);text-align:center; }
+    .predict-rank.gold { color:var(--yellow); }
+    .predict-player { font-family:Barlow Condensed,sans-serif;font-size:20px;font-weight:700;color:var(--text);letter-spacing:0.3px; }
+    .predict-sub { font-size:12px;color:var(--text2);margin-top:2px; }
+    .predict-tags { display:flex;gap:6px;margin-top:8px;flex-wrap:wrap; }
+    .predict-tag { font-size:11px;padding:3px 8px;border-radius:999px;background:var(--bg3);border:1px solid var(--border);color:var(--text2); }
+    .predict-tag.teal { background:var(--green-bg);border-color:var(--border2);color:var(--accent); }
+    .predict-tag.yellow { background:var(--yellow-bg);border-color:rgba(247,197,0,0.3);color:var(--yellow); }
+    .predict-score-wrap { text-align:right;min-width:80px; }
+    .predict-score-val { font-family:Barlow Condensed,sans-serif;font-size:26px;font-weight:700;color:var(--accent); }
+    .predict-score-label { font-size:10px;color:var(--text3); }
+    .predict-bar-wrap { grid-column:1/-1;margin-top:4px; }
+    .predict-bar-bg { height:4px;background:var(--bg3);border-radius:2px;overflow:hidden; }
+    .predict-bar-fill { height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 0.6s ease; }
+    .predict-loading { text-align:center;padding:3rem;color:var(--text3);font-size:14px; }
+    .predict-game-badge { display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 7px; }
     .bingo-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s; }
     .bingo-overlay.active { opacity:1;pointer-events:all; }
     .bingo-modal { background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.5rem;width:100%;max-width:520px;margin:1rem;max-height:90vh;overflow-y:auto; }
@@ -249,6 +279,10 @@
     <button class="pepsi-btn" onclick="showPepsiPage()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#E3001B" stroke-width="2"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" stroke="#004B93" stroke-width="1.5"/></svg>
       Pepsi
+    </button>
+    <button class="predict-btn" onclick="showPredictPage()">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l1.8 3.6L14 5.6l-3 2.9.7 4.1L8 10.5l-3.7 2.1.7-4.1-3-2.9 4.2-.6z"/></svg>
+      Predict
     </button>
     <button class="bingo-btn" onclick="openBingo()" id="bingo-header-btn">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
@@ -403,6 +437,27 @@
       <div class="pepsi-footer">
         <span>Sources: MLB Stats API + Baseball Savant (Statcast)</span>
         <span>Pepsi partner teams: MIN &middot; NYY &middot; ARI &middot; DET &middot; MIA &middot; CLE</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Predict Page -->
+<div id="predict-page">
+  <div class="predict-body">
+    <div class="predict-header">
+      <div>
+        <div class="predict-title">Next Baja Blast Predictor <span>Who's most likely to go 420ft+ today?</span></div>
+      </div>
+      <button class="predict-back" onclick="showMainPage()">&#8592; Back to tracker</button>
+    </div>
+    <div class="predict-main">
+      <div class="predict-meta" id="predict-meta">Analyzing today's matchups...</div>
+      <div class="predict-cards" id="predict-cards">
+        <div class="predict-loading">Loading predictions...</div>
+      </div>
+      <div style="margin-top:1.5rem;font-size:11px;color:var(--text3);line-height:1.6;">
+        Score based on: season exit velocity &amp; distance (40pts) &bull; barrel rate from Statcast (30pts) &bull; park factor (20pts) &bull; pitcher ERA (10pts). Players with games today are prioritized.
       </div>
     </div>
   </div>
@@ -742,7 +797,7 @@
   const PEPSI_TEAMS=['MIN','NYY','ARI','DET','MIA','CLE'];
   const PEPSI_TEAM_NAMES={MIN:'Twins',NYY:'Yankees',ARI:'Diamondbacks',DET:'Tigers',MIA:'Marlins',CLE:'Guardians'};
   function showPepsiPage(){document.getElementById('main-page').classList.add('hidden');document.getElementById('pepsi-page').classList.add('active');window.scrollTo(0,0);renderPepsiPage();}
-  function showMainPage(){document.getElementById('pepsi-page').classList.remove('active');document.getElementById('main-page').classList.remove('hidden');window.scrollTo(0,0);}
+  function showMainPage(){document.getElementById('pepsi-page').classList.remove('active');document.getElementById('predict-page').classList.remove('active');document.getElementById('main-page').classList.remove('hidden');window.scrollTo(0,0);}
   let pepsiTeamFilter='all';
   function setPepsiTeam(team){pepsiTeamFilter=team;renderPepsiPage();}
 
@@ -953,6 +1008,343 @@
     if (!e || e.target === document.getElementById('bingo-overlay')) {
       document.getElementById('bingo-overlay').classList.remove('active');
     }
+  }
+
+  // ── Predictor ──────────────────────────────────────────────────────────────
+
+  // Park factors (1.0 = neutral, >1.0 = hitter friendly)
+  const PARK_FACTORS = {
+    'COL':1.35,'CIN':1.18,'PHI':1.14,'MIL':1.12,'BOS':1.10,'NYY':1.09,'HOU':1.08,
+    'TEX':1.07,'ATL':1.06,'MIN':1.05,'CLE':1.04,'DET':1.04,'STL':1.03,'LAA':1.03,
+    'KC':1.02,'BAL':1.02,'TOR':1.01,'CHC':1.01,'CWS':1.00,'NYM':1.00,'WSH':0.99,
+    'TB':0.98,'MIA':0.97,'PIT':0.97,'SEA':0.96,'ARI':0.96,'LAD':0.95,'OAK':0.95,
+    'SF':0.93,'SD':0.92
+  };
+
+  let _predictCache = null;
+  let _predictDate = null;
+
+  function showPredictPage() {
+    document.getElementById('main-page').classList.add('hidden');
+    document.getElementById('pepsi-page').classList.remove('active');
+    document.getElementById('predict-page').classList.add('active');
+    window.scrollTo(0, 0);
+    runPredictor();
+  }
+
+  function showMainPage() {
+    document.getElementById('predict-page').classList.remove('active');
+    document.getElementById('pepsi-page').classList.remove('active');
+    document.getElementById('main-page').classList.remove('hidden');
+    window.scrollTo(0, 0);
+  }
+
+  async function fetchTodayGames() {
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&gameType=R&hydrate=probablePitcher,team`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const games = [];
+      for (const date of (data.dates || [])) {
+        for (const game of (date.games || [])) {
+          const awayTeam = game.teams?.away?.team?.abbreviation || '';
+          const homeTeam = game.teams?.home?.team?.abbreviation || '';
+          const awayPitcher = game.teams?.away?.probablePitcher?.fullName || '';
+          const homePitcher = game.teams?.home?.probablePitcher?.fullName || '';
+          const awayEra = game.teams?.away?.probablePitcher?.stats?.[0]?.stats?.era || null;
+          const homeEra = game.teams?.home?.probablePitcher?.stats?.[0]?.stats?.era || null;
+          games.push({
+            awayTeam, homeTeam,
+            awayPitcher, homePitcher,
+            awayEra: parseFloat(awayEra) || 4.5,
+            homeEra: parseFloat(homeEra) || 4.5,
+            venue: game.venue?.name || ''
+          });
+        }
+      }
+      return games;
+    } catch(e) {
+      return [];
+    }
+  }
+
+  async function runPredictor() {
+    const today = new Date().toISOString().slice(0,10);
+    if (_predictCache && _predictDate === today) {
+      renderPredictions(_predictCache.players, _predictCache.expectedToday);
+      return;
+    }
+
+    document.getElementById('predict-cards').innerHTML = '<div class="predict-loading">Analyzing matchups...</div>';
+
+    // Build player stats from our HR data
+    const playerStats = {};
+    for (const hr of allHRs) {
+      const p = hr.player;
+      if (!playerStats[p]) {
+        playerStats[p] = { player: p, team: hr.team, hrs: 0, totalDist: 0, distCount: 0, totalEV: 0, evCount: 0, bajas: 0 };
+      }
+      playerStats[p].hrs++;
+      if (hr.distance) { playerStats[p].totalDist += hr.distance; playerStats[p].distCount++; }
+      if (hr.exit_velocity) { playerStats[p].totalEV += hr.exit_velocity; playerStats[p].evCount++; }
+      if (hr.distance >= 420) playerStats[p].bajas++;
+    }
+
+    // Only players with at least 3 HRs and some EV data
+    const players = Object.values(playerStats).filter(p => p.hrs >= 3 && p.evCount >= 2);
+
+    // Fetch today's games
+    const games = await fetchTodayGames();
+    const teamsPlayingToday = new Set();
+    const teamOpponent = {};
+    const teamPark = {};
+    const opponentEra = {};
+    for (const g of games) {
+      teamsPlayingToday.add(g.awayTeam);
+      teamsPlayingToday.add(g.homeTeam);
+      teamOpponent[g.awayTeam] = g.homeTeam;
+      teamOpponent[g.homeTeam] = g.awayTeam;
+      teamPark[g.awayTeam] = g.homeTeam;
+      teamPark[g.homeTeam] = g.homeTeam;
+      opponentEra[g.awayTeam] = g.homeEra;
+      opponentEra[g.homeTeam] = g.awayEra;
+    }
+
+    // Score each player using probability-based model
+    // Base rate: ~2-3 Baja Blasts per day across 15 games = ~0.15 per game per top candidate
+    // We estimate individual probability based on their season profile + today's conditions
+
+    const scored = players.map(p => {
+      const avgEV = p.evCount > 0 ? p.totalEV / p.evCount : 95;
+      const avgDist = p.distCount > 0 ? p.totalDist / p.distCount : 380;
+      const bajaRate = p.hrs > 0 ? p.bajas / p.hrs : 0; // historical rate of HRs going 420+
+
+      // Base probability: their HR rate in general, adjusted for quality
+      // Better EV = harder contact = more likely to go deep
+      const evBoost = Math.max(0, (avgEV - 95) / 20); // 0 at 95mph, 0.5 at 105mph, 1.0 at 115mph
+      const distBoost = Math.max(0, (avgDist - 370) / 100); // 0 at 370ft, 0.6 at 430ft
+
+      // Historical baja rate is the strongest signal
+      const basePct = bajaRate * 0.25; // if 50% of their HRs go 420+, base = 12.5%
+
+      // Boost from EV and distance quality
+      const qualityBoost = (evBoost * 0.04) + (distBoost * 0.03);
+
+      // Park factor multiplier
+      const parkTeam = teamPark[p.team] || p.team;
+      const pf = PARK_FACTORS[parkTeam] || 1.0;
+      const parkMult = pf; // Coors 1.35x, Petco 0.92x
+
+      // Pitcher ERA effect — league avg ~4.20, scale ±15%
+      const era = opponentEra[p.team] || 4.5;
+      const pitcherMult = 0.85 + Math.min((era / 4.20) * 0.15, 0.30);
+
+      // Playing today bonus — if not playing, probability = 0
+      if (!teamsPlayingToday.has(p.team)) {
+        return {
+          ...p, avgEV: Math.round(avgEV * 10)/10, avgDist: Math.round(avgDist),
+          bajaRate: Math.round(bajaRate * 100), pct: 0,
+          playingToday: false, opponent: null, parkTeam, pf,
+          era: null
+        };
+      }
+
+      const rawPct = (basePct + qualityBoost) * parkMult * pitcherMult;
+      // Cap at 35% — even the best matchup is uncertain
+      const finalPct = Math.min(Math.round(rawPct * 100), 35);
+
+      return {
+        ...p,
+        avgEV: Math.round(avgEV * 10) / 10,
+        avgDist: Math.round(avgDist),
+        bajaRate: Math.round(bajaRate * 100),
+        pct: finalPct,
+        playingToday: true,
+        opponent: teamOpponent[p.team] || null,
+        parkTeam,
+        pf,
+        era: Math.round(era * 100) / 100
+      };
+    });
+
+    // Only show players playing today, sorted by probability
+    const playingScored = scored.filter(p => p.playingToday).sort((a, b) => b.pct - a.pct);
+
+    // Estimate how many Baja Blasts expected today across all games
+    const avgPerDay = allHRs.filter(h => h.distance >= 420).length / Math.max(1, [...new Set(allHRs.map(h => h.date))].length);
+    const expectedToday = Math.round(avgPerDay * 10) / 10;
+
+    const top5 = playingScored.slice(0, 5);
+    _predictCache = { players: top5, expectedToday };
+    _predictDate = today;
+    renderPredictions(top5, expectedToday);
+  }
+
+  // ── Predictor History ─────────────────────────────────────────────────────
+
+  function getPredictHistory() {
+    try { return JSON.parse(localStorage.getItem('predict_history_2026') || '[]'); } catch(e) { return []; }
+  }
+
+  function savePredictHistory(history) {
+    try { localStorage.setItem('predict_history_2026', JSON.stringify(history)); } catch(e) {}
+  }
+
+  function saveTodayPrediction(players) {
+    const today = new Date().toISOString().slice(0,10);
+    const history = getPredictHistory();
+    // Don't duplicate today's entry
+    if (history.find(h => h.date === today)) return;
+    history.push({
+      date: today,
+      picks: players.map(p => p.player),
+      hit: null // will be resolved on future visits
+    });
+    savePredictHistory(history);
+  }
+
+  function resolveHistory() {
+    const history = getPredictHistory();
+    const today = new Date().toISOString().slice(0,10);
+    let changed = false;
+    // Build set of players who hit Baja Blasts by date
+    const bajaByDate = {};
+    for (const hr of allHRs) {
+      if (hr.distance && hr.distance >= 420) {
+        if (!bajaByDate[hr.date]) bajaByDate[hr.date] = new Set();
+        bajaByDate[hr.date].add(hr.player);
+      }
+    }
+    for (const entry of history) {
+      // Only resolve past days (not today — game may still be live)
+      if (entry.hit === null && entry.date < today) {
+        const bajasOnDay = bajaByDate[entry.date] || new Set();
+        const hitPlayers = entry.picks.filter(p => bajasOnDay.has(p));
+        entry.hit = hitPlayers.length > 0;
+        entry.hitPlayers = hitPlayers;
+        changed = true;
+      }
+    }
+    if (changed) savePredictHistory(history);
+    return history;
+  }
+
+  function renderPredictions(players, expectedToday) {
+    const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+
+    // Expected blasts callout
+    const exp = expectedToday !== undefined ? expectedToday : '?';
+    const confidence = exp >= 3 ? 'High' : exp >= 1.5 ? 'Medium' : 'Low';
+    const confColor = exp >= 3 ? 'var(--accent)' : exp >= 1.5 ? 'var(--yellow)' : 'var(--text3)';
+    document.getElementById('predict-meta').innerHTML =
+      `<span style="color:var(--text2);">${today}</span> &bull; ` +
+      `<span style="color:${confColor};">~${exp} Baja Blasts expected today</span> &bull; ` +
+      `<span style="color:var(--text3);">Confidence: ${confidence}</span>`;
+
+    if (players.length === 0) {
+      document.getElementById('predict-cards').innerHTML =
+        '<div class="predict-loading" style="color:var(--text3);">No games scheduled today or insufficient data.</div>';
+      return;
+    }
+
+    document.getElementById('predict-cards').innerHTML = players.map((p, i) => {
+      const tags = [];
+      if (p.opponent) tags.push(`<span class="predict-tag teal">vs ${p.opponent}</span>`);
+      if (p.avgDist >= 420) tags.push(`<span class="predict-tag yellow">Avg ${p.avgDist}ft</span>`);
+      if (p.bajaRate >= 30) tags.push(`<span class="predict-tag yellow">${p.bajaRate}% blast rate</span>`);
+      if (p.avgEV >= 108) tags.push(`<span class="predict-tag teal">${p.avgEV} mph avg EV</span>`);
+      if (p.pf >= 1.10) tags.push(`<span class="predict-tag">${p.pf.toFixed(2)}x park</span>`);
+      if (p.era !== null && p.era >= 5.0) tags.push(`<span class="predict-tag">${p.era} ERA opp.</span>`);
+      tags.push(`<span class="predict-tag">${p.bajas} Baja Blasts</span>`);
+
+      // Color the probability
+      const pct = p.pct;
+      const pctColor = pct >= 20 ? 'var(--accent)' : pct >= 12 ? 'var(--yellow)' : 'var(--text2)';
+      const barWidth = Math.round((pct / 35) * 100); // 35% is max
+
+      return `<div class="predict-card">
+        <div class="predict-rank${i === 0 ? ' gold' : ''}">#${i+1}</div>
+        <div>
+          <div class="predict-player">${p.player}</div>
+          <div class="predict-sub">${p.team}${p.opponent ? ' · vs ' + p.opponent : ''}</div>
+          <div class="predict-tags">${tags.join('')}</div>
+        </div>
+        <div class="predict-score-wrap">
+          <div class="predict-score-val" style="color:${pctColor};">${pct}%</div>
+          <div class="predict-score-label">chance today</div>
+        </div>
+        <div class="predict-bar-wrap">
+          <div class="predict-bar-bg"><div class="predict-bar-fill" style="width:${barWidth}%;background:${pctColor};"></div></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Save today's picks and render history
+    saveTodayPrediction(players);
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const history = resolveHistory();
+    const resolved = history.filter(h => h.hit !== null).reverse();
+
+    // Remove existing history section if present
+    const existing = document.getElementById('predict-history-section');
+    if (existing) existing.remove();
+
+    if (resolved.length === 0) return;
+
+    const hits = resolved.filter(h => h.hit).length;
+    const hitRate = Math.round((hits / resolved.length) * 100);
+
+    // Build streak
+    let streak = 0;
+    for (const entry of [...resolved]) {
+      if (entry.hit) streak++; else break;
+    }
+
+    const section = document.createElement('div');
+    section.id = 'predict-history-section';
+    section.style.cssText = 'margin-top:2rem;';
+    section.innerHTML = `
+      <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <div style="font-family:Barlow Condensed,sans-serif;font-size:16px;font-weight:700;color:var(--text);letter-spacing:0.3px;">Prediction History</div>
+        <div style="display:flex;gap:10px;">
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;text-align:center;">
+            <div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:700;color:var(--accent);">${hitRate}%</div>
+            <div style="font-size:10px;color:var(--text3);">hit rate</div>
+          </div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;text-align:center;">
+            <div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:700;color:var(--text);">${hits}/${resolved.length}</div>
+            <div style="font-size:10px;color:var(--text3);">days correct</div>
+          </div>
+          ${streak > 0 ? `<div style="background:var(--yellow-bg);border:1px solid rgba(247,197,0,0.3);border-radius:var(--radius);padding:6px 14px;text-align:center;">
+            <div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:700;color:var(--yellow);">${streak}</div>
+            <div style="font-size:10px;color:var(--text3);">day streak</div>
+          </div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${resolved.map(entry => {
+          const dateStr = new Date(entry.date + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'});
+          const hitIcon = entry.hit ? '&#10003;' : '&#10007;';
+          const hitColor = entry.hit ? 'var(--accent)' : 'var(--text3)';
+          const hitBg = entry.hit ? 'var(--green-bg)' : 'var(--bg3)';
+          const hitBorder = entry.hit ? 'var(--border2)' : 'var(--border)';
+          const hitPlayers = entry.hitPlayers && entry.hitPlayers.length > 0
+            ? `<span style="font-size:11px;color:var(--accent);margin-left:8px;">${entry.hitPlayers.join(', ')}</span>`
+            : '';
+          return `<div style="background:${hitBg};border:1px solid ${hitBorder};border-radius:var(--radius);padding:8px 14px;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:16px;color:${hitColor};font-weight:700;width:18px;text-align:center;">${hitIcon}</span>
+            <span style="font-size:12px;color:var(--text3);min-width:52px;">${dateStr}</span>
+            <span style="font-size:12px;color:var(--text2);">${entry.picks.slice(0,3).join(', ')}${entry.picks.length > 3 ? ' +' + (entry.picks.length - 3) + ' more' : ''}</span>
+            ${hitPlayers}
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    document.querySelector('.predict-main').appendChild(section);
   }
 
   // ── Random Baja Blast
