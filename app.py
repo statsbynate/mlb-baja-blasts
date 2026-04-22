@@ -220,7 +220,7 @@ def fetch_all_homeruns(season=SEASON):
             logger.warning(f"Game {game['gamePk']} error: {e}")
             return game["gamePk"], []
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {executor.submit(fetch_game, game): game for game in games_to_fetch}
         for future in as_completed(futures, timeout=120):
             try:
@@ -250,7 +250,7 @@ def fetch_all_homeruns(season=SEASON):
             logger.warning(f"Savant feed {gk} error: {e}")
             return gk, {}
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {executor.submit(fetch_one, gk): gk for gk in pks_to_fetch}
         for future in as_completed(futures, timeout=120):
             try:
@@ -346,7 +346,7 @@ def _enrich_with_savant(all_hrs):
             logger.warning(f"Savant feed {gk} error: {e}")
             return gk, {}
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {executor.submit(fetch_one, gk): gk for gk in pks_to_fetch}
         for future in as_completed(futures, timeout=120):
             try:
@@ -470,59 +470,9 @@ def background_fetch():
     _fetch_in_progress = True
     _fetch_started_at = time.time()
     try:
-        # On cold start with no cache, fetch in batches and write partial results
-        # so the site loads even if the full fetch is slow
         cached = load_file_cache()
         first_run = cached is None
-
-        games = fetch_final_games(SEASON)
-        if not games:
-            logger.warning("No games returned from MLB API")
-            return
-
-        games_to_fetch = [g for g in games if g["gamePk"] not in _game_cache]
-        logger.info(f"Background fetch: {len(games_to_fetch)} new games, {len(games) - len(games_to_fetch)} cached")
-
-        # Fetch in batches of 50 games — write partial cache after each batch
-        BATCH_SIZE = 50
-        for batch_start in range(0, len(games_to_fetch), BATCH_SIZE):
-            # Check if we've been running too long mid-batch
-            if _fetch_started_at and (time.time() - _fetch_started_at) > FETCH_TIMEOUT - 30:
-                logger.warning("Background fetch approaching timeout, saving partial results")
-                break
-
-            batch = games_to_fetch[batch_start:batch_start + BATCH_SIZE]
-
-            def fetch_game(game):
-                try:
-                    return game["gamePk"], fetch_homeruns_for_game(game)
-                except Exception as e:
-                    logger.warning(f"Game {game['gamePk']} error: {e}")
-                    return game["gamePk"], []
-
-            with ThreadPoolExecutor(max_workers=8) as executor:
-                futures = {executor.submit(fetch_game, game): game for game in batch}
-                for future in as_completed(futures, timeout=120):
-                    try:
-                        gk, hrs = future.result(timeout=20)
-                        _game_cache[gk] = hrs
-                    except Exception as e:
-                        game = futures[future]
-                        logger.warning(f"Game fetch {game.get('gamePk')} timed out: {e}")
-                        _game_cache[game["gamePk"]] = []
-
-            # Enrich and write partial cache after each batch so cold starts show real data
-            all_hrs = []
-            for game in games:
-                all_hrs.extend(_game_cache.get(game["gamePk"], []))
-            partial_data = _enrich_with_savant(all_hrs)
-            save_file_cache(partial_data)
-            baja_count = sum(1 for h in partial_data if h.get("distance") and h["distance"] >= MIN_DISTANCE)
-            logger.info(f"Partial cache written: {len(partial_data)} HRs, {baja_count} Baja Blasts after batch {batch_start // BATCH_SIZE + 1}")
-
-        # Final data is already enriched from last batch write
-        data = load_file_cache()
-        data = data["data"] if data else []
+        data = fetch_all_homeruns()
         check_and_notify(data, first_run=first_run)
         save_file_cache(data)
         logger.info(f"Background fetch complete: {len(data)} HRs")
