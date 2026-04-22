@@ -305,6 +305,79 @@ def fetch_all_homeruns(season=SEASON):
 
 
 
+def _build_result(all_hrs):
+    """Deduplicate and sort a flat list of HR dicts. Used by background_fetch batching."""
+    seen = set()
+    deduped = []
+    for hr in all_hrs:
+        pid = hr.get("play_id", "").strip()
+        if pid:
+            key = pid
+        else:
+            key = f"{hr['player']}|{hr['game_pk']}|{hr['inning']}|{hr['inning_half']}"
+        if key not in seen:
+            seen.add(key)
+            deduped.append(hr)
+    baja = [h for h in deduped if h.get("distance") and h["distance"] >= MIN_DISTANCE]
+    sub = [h for h in deduped if h.get("distance") and h["distance"] < MIN_DISTANCE]
+    pending = [h for h in deduped if not h.get("distance")]
+    baja.sort(key=lambda x: x["distance"], reverse=True)
+    sub.sort(key=lambda x: x["distance"], reverse=True)
+    return baja + sub + pending
+
+
+def fetch_all_homeruns_savant_only(games):
+    """Re-run Savant enrichment on already-cached game data, then return full sorted results."""
+    all_hrs = []
+    for game in games:
+        all_hrs.extend(_game_cache.get(game["gamePk"], []))
+    return fetch_all_homeruns.__wrapped__(all_hrs) if hasattr(fetch_all_homeruns, '__wrapped__') else _enrich_with_savant(all_hrs)
+
+
+def _enrich_with_savant(all_hrs):
+    """Run Savant enrichment pass on a list of HRs and return deduped sorted results."""
+    unique_pks = list({hr["game_pk"] for hr in all_hrs})
+    pks_to_fetch = [gk for gk in unique_pks if gk not in _savant_cache or not _savant_cache[gk]]
+
+    def fetch_one(gk):
+        try:
+            return gk, fetch_savant_game_feed(gk)
+        except Exception as e:
+            logger.warning(f"Savant feed {gk} error: {e}")
+            return gk, {}
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(fetch_one, gk): gk for gk in pks_to_fetch}
+        for future in as_completed(futures, timeout=120):
+            try:
+                gk, data = future.result(timeout=20)
+                _savant_cache[gk] = data
+            except Exception as e:
+                gk = futures[future]
+                logger.warning(f"Savant fetch {gk} timed out: {e}")
+                _savant_cache[gk] = {}
+
+    game_feed_cache = {gk: _savant_cache.get(gk, {}) for gk in unique_pks}
+    results = []
+    for hr in all_hrs:
+        gk = hr["game_pk"]
+        game_lookup = game_feed_cache.get(gk, {})
+        key = (hr["player"], hr["inning"])
+        enriched = game_lookup.get(key)
+        if enriched and enriched.get("distance"):
+            hr["distance"] = enriched["distance"]
+            hr["exit_velocity"] = enriched.get("exit_velocity") or hr["exit_velocity"]
+            hr["launch_angle"] = enriched.get("launch_angle") or hr["launch_angle"]
+            hr["play_id"] = enriched.get("play_id", "")
+            hr["hc_x"] = enriched.get("hc_x")
+            hr["hc_y"] = enriched.get("hc_y")
+            hr["source"] = "Statcast (game feed)"
+        else:
+            hr["source"] = "MLB Stats API (distance pending)"
+        results.append(hr)
+    return _build_result(results)
+
+
 def send_ntfy_notification(hr):
     try:
         dist = hr.get("distance", "")
@@ -397,9 +470,60 @@ def background_fetch():
     _fetch_in_progress = True
     _fetch_started_at = time.time()
     try:
-        data = fetch_all_homeruns()
+        # On cold start with no cache, fetch in batches and write partial results
+        # so the site loads even if the full fetch is slow
         cached = load_file_cache()
         first_run = cached is None
+
+        games = fetch_final_games(SEASON)
+        if not games:
+            logger.warning("No games returned from MLB API")
+            return
+
+        games_to_fetch = [g for g in games if g["gamePk"] not in _game_cache]
+        logger.info(f"Background fetch: {len(games_to_fetch)} new games, {len(games) - len(games_to_fetch)} cached")
+
+        # Fetch in batches of 50 games — write partial cache after each batch
+        BATCH_SIZE = 50
+        for batch_start in range(0, len(games_to_fetch), BATCH_SIZE):
+            # Check if we've been running too long mid-batch
+            if _fetch_started_at and (time.time() - _fetch_started_at) > FETCH_TIMEOUT - 30:
+                logger.warning("Background fetch approaching timeout, saving partial results")
+                break
+
+            batch = games_to_fetch[batch_start:batch_start + BATCH_SIZE]
+
+            def fetch_game(game):
+                try:
+                    return game["gamePk"], fetch_homeruns_for_game(game)
+                except Exception as e:
+                    logger.warning(f"Game {game['gamePk']} error: {e}")
+                    return game["gamePk"], []
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                futures = {executor.submit(fetch_game, game): game for game in batch}
+                for future in as_completed(futures, timeout=120):
+                    try:
+                        gk, hrs = future.result(timeout=20)
+                        _game_cache[gk] = hrs
+                    except Exception as e:
+                        game = futures[future]
+                        logger.warning(f"Game fetch {game.get('gamePk')} timed out: {e}")
+                        _game_cache[game["gamePk"]] = []
+
+            # Write partial cache after each batch so cold starts are visible
+            all_hrs = []
+            for game in games:
+                all_hrs.extend(_game_cache.get(game["gamePk"], []))
+            partial_data = _build_result(all_hrs)
+            save_file_cache(partial_data)
+            logger.info(f"Partial cache written: {len(partial_data)} HRs after batch {batch_start // BATCH_SIZE + 1}")
+
+        # Final pass: Savant enrichment on all cached game data
+        all_hrs_final = []
+        for game in games:
+            all_hrs_final.extend(_game_cache.get(game["gamePk"], []))
+        data = _enrich_with_savant(all_hrs_final)
         check_and_notify(data, first_run=first_run)
         save_file_cache(data)
         logger.info(f"Background fetch complete: {len(data)} HRs")
