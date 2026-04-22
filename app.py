@@ -511,19 +511,18 @@ def background_fetch():
                         logger.warning(f"Game fetch {game.get('gamePk')} timed out: {e}")
                         _game_cache[game["gamePk"]] = []
 
-            # Write partial cache after each batch so cold starts are visible
+            # Enrich and write partial cache after each batch so cold starts show real data
             all_hrs = []
             for game in games:
                 all_hrs.extend(_game_cache.get(game["gamePk"], []))
-            partial_data = _build_result(all_hrs)
+            partial_data = _enrich_with_savant(all_hrs)
             save_file_cache(partial_data)
-            logger.info(f"Partial cache written: {len(partial_data)} HRs after batch {batch_start // BATCH_SIZE + 1}")
+            baja_count = sum(1 for h in partial_data if h.get("distance") and h["distance"] >= MIN_DISTANCE)
+            logger.info(f"Partial cache written: {len(partial_data)} HRs, {baja_count} Baja Blasts after batch {batch_start // BATCH_SIZE + 1}")
 
-        # Final pass: Savant enrichment on all cached game data
-        all_hrs_final = []
-        for game in games:
-            all_hrs_final.extend(_game_cache.get(game["gamePk"], []))
-        data = _enrich_with_savant(all_hrs_final)
+        # Final data is already enriched from last batch write
+        data = load_file_cache()
+        data = data["data"] if data else []
         check_and_notify(data, first_run=first_run)
         save_file_cache(data)
         logger.info(f"Background fetch complete: {len(data)} HRs")
