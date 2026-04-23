@@ -27,7 +27,10 @@ CACHE_TTL = 600
 SEASON = "2026"
 MIN_DISTANCE = 420
 NTFY_CHANNEL = "baja-blast-tracker-2026"
-CACHE_FILE = "/tmp/mlb_hr_cache.json"
+# Use persistent disk if available, fall back to /tmp
+_PERSISTENT_PATH = "/data/mlb_hr_cache.json"
+_TMP_PATH = "/tmp/mlb_hr_cache.json"
+CACHE_FILE = _PERSISTENT_PATH if os.path.isdir("/data") else _TMP_PATH
 
 MLB_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
