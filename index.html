@@ -1217,13 +1217,16 @@
       }
     }
     for (const entry of history) {
-      // Only resolve past days (not today — game may still be live)
-      if (entry.hit === null && entry.date < today) {
+      // Re-evaluate ALL past days every time — data may have loaded late last time
+      if (entry.date < today) {
         const bajasOnDay = bajaByDate[entry.date] || new Set();
         const hitPlayers = entry.picks.filter(p => bajasOnDay.has(p));
-        entry.hit = hitPlayers.length > 0;
-        entry.hitPlayers = hitPlayers;
-        changed = true;
+        const newHit = hitPlayers.length > 0;
+        if (entry.hit !== newHit || JSON.stringify(entry.hitPlayers) !== JSON.stringify(hitPlayers)) {
+          entry.hit = newHit;
+          entry.hitPlayers = hitPlayers;
+          changed = true;
+        }
       }
     }
     if (changed) savePredictHistory(history);
