@@ -6,10 +6,15 @@ import logging
 import traceback
 import json
 import threading
+import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, jsonify
 from flask_cors import CORS
 import requests
+
+# Global socket timeout — kills any connection that hangs at the TCP level
+# requests timeouts only cover connect+read, not hung sockets
+socket.setdefaulttimeout(25)
 
 app = Flask(__name__)
 CORS(app)
