@@ -146,7 +146,11 @@ def fetch_homeruns_for_game(game):
     for i, play in enumerate(plays):
         if safe_get(play, "result", "event").lower() != "home run":
             continue
-        hit = play.get("hitData", {})
+        # hitData and playId live on the pitch event, not on the play itself
+        events = play.get("playEvents") or []
+        pitch = next((e for e in reversed(events) if e.get("hitData")), events[-1] if events else {})
+        hit = pitch.get("hitData", {}) or {}
+        mlb_play_id = str(pitch.get("playId", "") or "").strip()
         distance = hit.get("totalDistance")
         ev = hit.get("launchSpeed")
         la = hit.get("launchAngle")
@@ -175,7 +179,8 @@ def fetch_homeruns_for_game(game):
             "is_walkoff": is_walkoff,
             "game_pk": game["gamePk"],
             "pitcher": pitcher,
-            "play_id": "",
+            "play_id": mlb_play_id,
+            "at_bat_index": safe_get(play, "about", "atBatIndex", default=i),
             "hc_x": None,
             "hc_y": None,
             "source": "MLB Stats API",
@@ -216,20 +221,24 @@ def fetch_savant_game_distances(game_pk):
                 play_id = str(play.get("play_id", "")).strip()
                 hc_x = play.get("hc_x")
                 hc_y = play.get("hc_y")
-                key = (name, inning)
-                if key not in lookup:
-                    lookup[key] = {
-                        "distance": dist,
-                        "exit_velocity": round(float(str(ev_raw)), 1) if ev_raw else None,
-                        "launch_angle": round(float(str(la_raw)), 1) if la_raw else None,
-                        "play_id": play_id,
-                        "hc_x": round(float(str(hc_x)), 2) if hc_x else None,
-                        "hc_y": round(float(str(hc_y)), 2) if hc_y else None,
-                    }
+                entry = {
+                    "distance": dist,
+                    "exit_velocity": round(float(str(ev_raw)), 1) if ev_raw else None,
+                    "launch_angle": round(float(str(la_raw)), 1) if la_raw else None,
+                    "play_id": play_id,
+                    "hc_x": round(float(str(hc_x)), 2) if hc_x else None,
+                    "hc_y": round(float(str(hc_y)), 2) if hc_y else None,
+                }
+                # Primary key: the play UUID (same ID the MLB feed uses).
+                if play_id:
+                    lookup["id:" + play_id] = entry
+                # Fallback key: (name, inning). A player can homer twice in one
+                # inning, so keep a list and only use it when it's unambiguous.
+                lookup.setdefault((name, inning), []).append(entry)
             except (ValueError, TypeError):
                 continue
 
-        logger.info(f"Savant game feed {game_pk}: {len(lookup)} HR distance entries")
+        logger.info(f"Savant game feed {game_pk}: {sum(1 for k in lookup if isinstance(k, str))} HR entries")
         return lookup
 
     except Exception as e:
@@ -288,12 +297,20 @@ def _needs_fetch(game, recheck_after):
     return False
 
 
+def _savant_match(lookup, hr):
+    """Match a HR to its Statcast entry by play ID, falling back to a unique (name, inning)."""
+    if hr.get("play_id") and ("id:" + hr["play_id"]) in lookup:
+        return lookup["id:" + hr["play_id"]]
+    candidates = lookup.get((hr["player"], hr["inning"])) or []
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def _needs_savant(pk):
     if pk not in _savant_cache:
         return True
     lookup = _savant_cache[pk]
     # Retry if any HR in this game still lacks a Statcast match
-    return any((hr["player"], hr["inning"]) not in lookup for hr in _game_cache.get(pk, []))
+    return any(_savant_match(lookup, hr) is None for hr in _game_cache.get(pk, []))
 
 
 def _build_result(all_hrs):
@@ -302,7 +319,7 @@ def _build_result(all_hrs):
     deduped = []
     for hr in all_hrs:
         pid = hr.get("play_id", "").strip()
-        key = pid or f"{hr['player']}|{hr['game_pk']}|{hr['inning']}|{hr['inning_half']}"
+        key = pid or f"{hr['game_pk']}|{hr.get('at_bat_index')}|{hr['player']}|{hr['inning']}|{hr['inning_half']}"
         if key not in seen:
             seen.add(key)
             deduped.append(hr)
@@ -375,15 +392,17 @@ def fetch_all_homeruns(season=SEASON):
             _savant_cache[gk] = data
 
     for hr in all_hrs:
-        enriched = _savant_cache.get(hr["game_pk"], {}).get((hr["player"], hr["inning"]))
+        enriched = _savant_match(_savant_cache.get(hr["game_pk"], {}), hr)
         if enriched and enriched.get("distance"):
             hr["distance"] = enriched["distance"]
             hr["exit_velocity"] = enriched.get("exit_velocity") or hr["exit_velocity"]
             hr["launch_angle"] = enriched.get("launch_angle") or hr["launch_angle"]
-            hr["play_id"] = enriched.get("play_id", "")
+            hr["play_id"] = enriched.get("play_id") or hr.get("play_id", "")
             hr["hc_x"] = enriched.get("hc_x")
             hr["hc_y"] = enriched.get("hc_y")
             hr["source"] = "Statcast (game feed)"
+        elif hr.get("distance"):
+            hr["source"] = "MLB Stats API"
         else:
             hr["source"] = "MLB Stats API (distance pending)"
 
@@ -472,11 +491,19 @@ def save_file_cache(data, games_completed):
 FETCH_TIMEOUT = 300  # 5 minutes
 
 _fetch_started_at = None
+_fetch_thread = None
 
 
 def check_stuck_fetch():
-    """Reset fetch_in_progress if stuck longer than FETCH_TIMEOUT. Call from any route."""
+    """Reset fetch_in_progress if the fetching thread died or ran too long. Call from any route."""
     global _fetch_in_progress, _fetch_started_at
+    # Under gunicorn --preload the startup thread runs in the master process; forked
+    # workers inherit fetch_in_progress=True with no thread behind it. Clear that now.
+    if _fetch_in_progress and (_fetch_thread is None or not _fetch_thread.is_alive()):
+        logger.warning("Watchdog: fetch flag set but no live fetch thread, resetting")
+        _fetch_in_progress = False
+        _fetch_started_at = None
+        return
     if _fetch_in_progress and _fetch_started_at and (time.time() - _fetch_started_at) > FETCH_TIMEOUT:
         logger.warning(f"Watchdog: fetch stuck for >{FETCH_TIMEOUT}s, force-resetting")
         _fetch_in_progress = False
@@ -484,10 +511,11 @@ def check_stuck_fetch():
 
 
 def background_fetch():
-    global _fetch_in_progress, _fetch_started_at
+    global _fetch_in_progress, _fetch_started_at, _fetch_thread
     check_stuck_fetch()
     if _fetch_in_progress:
         return
+    _fetch_thread = threading.current_thread()
     _fetch_in_progress = True
     _fetch_started_at = time.time()
     run_again = False
@@ -521,6 +549,7 @@ def background_fetch():
 
 @app.route("/api/homeruns")
 def homeruns():
+    check_stuck_fetch()
     now = time.time()
     cached = load_file_cache()
 
