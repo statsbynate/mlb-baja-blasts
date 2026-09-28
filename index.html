@@ -546,7 +546,7 @@
       const addedBajas = newBajaCount - previousBajaCount;
       if (lastSeenPks.size > 0 && addedCount > 0) showToast(addedCount + ' new home run' + (addedCount > 1 ? 's' : '') + ' added!');
       if (lastSeenPks.size > 0 && addedBajas > 0) setTimeout(() => fireConfetti(), 400);
-      previousBajaCount = newBajaCount; lastSeenPks = newPks; allHRs = newHRs;
+      previousBajaCount = newBajaCount; lastSeenPks = newPks; allHRs = newHRs; window.gamesCompleted = json.games_completed;
       updateStats(); populateFilters(); renderTable(); renderCharts(); renderMap(); renderLeaderboards(); renderKnocking(); renderSpray();
       document.getElementById('footer-updated').textContent = 'Updated ' + new Date().toLocaleTimeString() + ' \u2014 ' + (json.cached ? 'cached ' + json.cache_age_seconds + 's ago' : 'fresh from API');
       if (json.error) errArea.innerHTML = '<div class="error-msg">Showing cached data \u2014 ' + json.error + '</div>';
@@ -560,7 +560,7 @@
     const known = allHRs.filter(h => h.distance && h.distance >= 420), games = new Set(allHRs.map(h => h.game_pk)).size;
     document.getElementById('stat-total').textContent = allHRs.length;
     document.getElementById('stat-420').textContent = known.length || '\u2014';
-    document.getElementById('stat-games').textContent = games;
+    document.getElementById('stat-games').textContent = window.gamesCompleted ?? games;
     if (known.length > 0) { const l = known.reduce((a,b) => b.distance > a.distance ? b : a); document.getElementById('stat-longest').textContent = l.distance + ' ft'; document.getElementById('stat-longest-by').textContent = l.player; }
     else { document.getElementById('stat-longest').textContent = '\u2014'; document.getElementById('stat-longest-by').textContent = 'pending Statcast'; }
   }
