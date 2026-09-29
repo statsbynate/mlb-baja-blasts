@@ -1,4 +1,6 @@
 import os
+import csv
+import io
 import time
 import logging
 import traceback
@@ -28,6 +30,8 @@ _savant_cache = {}  # game_pk -> savant lookup
 _notified_blasts = set()
 _fetch_in_progress = False
 _last_reconcile = 0
+_last_savant_search = 0
+_savant_search_cache = {}  # (game_pk, batter_id, at_bat_number) -> Statcast Search row
 CACHE_TTL = 600
 
 SEASON = "2026"
@@ -40,6 +44,7 @@ NTFY_CHANNEL = "baja-blast-tracker-2026"
 PLAYED_STATES = {"F", "O"}          # F = Final / Completed Early, O = Game Over
 RECHECK_DAYS = 2                    # always re-pull games from the last N days (scoring changes)
 RECONCILE_INTERVAL = 6 * 3600       # compare against official team game logs every 6h
+SAVANT_SEARCH_INTERVAL = 6 * 3600   # backfill missing distances from Statcast Search every 6h
 MAX_GAMES_PER_RUN = 400             # keeps a cold start inside the 5-min watchdog
 NOTIFY_MAX_AGE_DAYS = 1             # never push notifications for old HRs found in a backfill
 
@@ -107,7 +112,8 @@ def fetch_final_games(season=SEASON):
     treated the postponed entry as a finished game, cached it as 0 HRs,
     and never re-fetched it when the makeup was actually played.
     """
-    url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={season}&gameType=R"
+    url = (f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={season}"
+           f"&gameType=R&hydrate=venue(location)")
     resp = requests.get(url, headers=MLB_HEADERS, timeout=30)
     resp.raise_for_status()
     by_pk = {}
@@ -126,6 +132,10 @@ def fetch_final_games(season=SEASON):
                 "home": team_abbrev(home_dict),
                 "away": team_abbrev(away_dict),
                 "state": state,
+                "venue": safe_get(game, "venue", "name"),
+                "venue_city": safe_get(game, "venue", "location", "city"),
+                "venue_lat": safe_get(game, "venue", "location", "defaultCoordinates", "latitude", default=None),
+                "venue_lng": safe_get(game, "venue", "location", "defaultCoordinates", "longitude", default=None),
             }
     games = list(by_pk.values())
     logger.info(f"Found {len(games)} completed games")
@@ -181,6 +191,14 @@ def fetch_homeruns_for_game(game):
             "pitcher": pitcher,
             "play_id": mlb_play_id,
             "at_bat_index": safe_get(play, "about", "atBatIndex", default=i),
+            "batter_id": safe_get(play, "matchup", "batter", "id", default=None),
+            "batting_side": "home" if half == "bottom" else "away",
+            "home_team": game["home"],
+            "away_team": game["away"],
+            "venue": game.get("venue", ""),
+            "venue_city": game.get("venue_city", ""),
+            "venue_lat": game.get("venue_lat"),
+            "venue_lng": game.get("venue_lng"),
             "hc_x": None,
             "hc_y": None,
             "source": "MLB Stats API",
@@ -250,6 +268,60 @@ def _invalidate(pk):
     _game_cache.pop(pk, None)
     _game_meta.pop(pk, None)
     _savant_cache.pop(pk, None)
+
+
+def fetch_savant_search_homeruns(season=SEASON):
+    """All season HRs from Baseball Savant's Statcast Search CSV.
+    Used only to fill distances the per-game feed is missing."""
+    url = ("https://baseballsavant.mlb.com/statcast_search/csv?all=true"
+           f"&hfAB=home%5C.%5C.run%7C&hfGT=R%7C&hfSea={season}%7C&player_type=batter"
+           "&min_pitches=0&min_results=0&min_pas=0&type=details")
+    resp = requests.get(url, headers=SAVANT_HEADERS, timeout=60)
+    resp.raise_for_status()
+    reader = csv.DictReader(io.StringIO(resp.content.decode("utf-8-sig", errors="replace")))
+    out = {}
+    for row in reader:
+        try:
+            key = (str(row["game_pk"]), int(row["batter"]), int(row["at_bat_number"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+        out[key] = row
+    logger.info(f"Statcast Search: {len(out)} season HRs")
+    return out
+
+
+def _fill_from_savant_search(all_hrs, season=SEASON):
+    """For HRs still missing a distance, look them up in Statcast Search (refreshed every 6h)."""
+    global _last_savant_search, _savant_search_cache
+    pending = [h for h in all_hrs if not h.get("distance")]
+    if not pending:
+        return
+    if time.time() - _last_savant_search > SAVANT_SEARCH_INTERVAL:
+        try:
+            _savant_search_cache = fetch_savant_search_homeruns(season)
+            _last_savant_search = time.time()
+        except Exception as e:
+            logger.warning(f"Statcast Search fetch failed: {e}")
+            _last_savant_search = time.time() - SAVANT_SEARCH_INTERVAL + 1800  # retry in 30 min
+    filled = 0
+    for hr in pending:
+        if hr.get("batter_id") is None or hr.get("at_bat_index") is None:
+            continue
+        row = _savant_search_cache.get((str(hr["game_pk"]), int(hr["batter_id"]), int(hr["at_bat_index"]) + 1))
+        if not row or not row.get("hit_distance_sc"):
+            continue
+        try:
+            hr["distance"] = int(float(row["hit_distance_sc"]))
+            if row.get("launch_speed"): hr["exit_velocity"] = round(float(row["launch_speed"]), 1)
+            if row.get("launch_angle"): hr["launch_angle"] = round(float(row["launch_angle"]), 1)
+            if row.get("hc_x") and not hr.get("hc_x"): hr["hc_x"] = round(float(row["hc_x"]), 2)
+            if row.get("hc_y") and not hr.get("hc_y"): hr["hc_y"] = round(float(row["hc_y"]), 2)
+            hr["source"] = "Statcast (search)"
+            filled += 1
+        except (ValueError, TypeError):
+            continue
+    if filled:
+        logger.info(f"Filled {filled} missing distances from Statcast Search")
 
 
 def reconcile_with_game_logs(season=SEASON):
@@ -406,6 +478,7 @@ def fetch_all_homeruns(season=SEASON):
         else:
             hr["source"] = "MLB Stats API (distance pending)"
 
+    _fill_from_savant_search(all_hrs, season)
     return _build_result(all_hrs), len(games), missing == 0
 
 
