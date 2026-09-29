@@ -93,6 +93,8 @@
     .team-chip { display:inline-block;font-family:Barlow Condensed,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.5px;padding:2px 8px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2); }
     .dist-badge { display:inline-block;font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--green-bg);color:var(--green);border:1px solid var(--border2); }
     .dist-badge.pending { background:var(--bg3);color:var(--text3);border-color:var(--border);font-size:11px; }
+    .side-tag { display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;border:1px solid var(--border2);color:var(--text3); }
+    .side-tag.home { color:var(--accent);background:var(--green-bg); }
     .walkoff-badge { display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:rgba(247,197,0,0.1);color:var(--yellow);border:1px solid rgba(247,197,0,0.3);margin-left:6px;vertical-align:middle; }
     .tweet-btn { display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;cursor:pointer;font-family:'Barlow',sans-serif;transition:background 0.15s,color 0.15s,border-color 0.15s;white-space:nowrap;text-decoration:none; }
     .tweet-btn:hover { background:#1da1f2;border-color:#1da1f2;color:white; }
@@ -311,7 +313,7 @@
   </div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-label">Total Home Runs</div><div class="stat-value" id="stat-total">&#8212;</div><div class="stat-sub">2026 season</div></div>
-    <div class="stat-card green"><div class="stat-label">Baja Blasts</div><div class="stat-value" id="stat-420">&#8212;</div><div class="stat-sub">420+ ft verified</div></div>
+    <div class="stat-card green"><div class="stat-label">Baja Blasts</div><div class="stat-value" id="stat-420">&#8212;</div><div class="stat-sub" id="stat-420-sub">420+ ft verified</div></div>
     <div class="stat-card amber"><div class="stat-label">Longest Blast</div><div class="stat-value" id="stat-longest">&#8212;</div><div class="stat-sub" id="stat-longest-by">pending Statcast</div></div>
     <div class="stat-card blue"><div class="stat-label">Games Tracked</div><div class="stat-value" id="stat-games">&#8212;</div><div class="stat-sub">completed games</div></div>
   </div>
@@ -351,9 +353,9 @@
     <div class="map-header">
       <div class="map-title">Baja Blasts by ballpark</div>
       <div class="map-legend">
-        <div class="map-legend-item"><div class="map-legend-dot" style="width:7px;height:7px;"></div> 1&#8211;2 blasts</div>
-        <div class="map-legend-item"><div class="map-legend-dot" style="width:11px;height:11px;"></div> 3&#8211;5 blasts</div>
-        <div class="map-legend-item"><div class="map-legend-dot" style="width:16px;height:16px;"></div> 6+ blasts</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="width:12px;height:12px;"></div> 10 blasts</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="width:19px;height:19px;"></div> 40 blasts</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="width:27px;height:27px;"></div> 100+ blasts</div>
       </div>
     </div>
     <div id="map-wrap" style="position:relative;">
@@ -361,6 +363,7 @@
       <svg id="map-svg" viewBox="0 0 960 500" style="display:none;width:100%;"></svg>
       <div class="map-tooltip" id="map-tooltip"></div>
     </div>
+    <div class="map-footnote" id="map-footnote" style="font-size:11px;color:var(--text3);margin-top:6px;"></div>
   </div>
   <div class="controls">
     <div class="search-wrap">
@@ -382,6 +385,7 @@
       <option value="player-asc">Player (A-Z)</option>
       <option value="team-asc">Team (A-Z)</option>
     </select>
+    <select class="filter-select" id="side-filter" onchange="renderTable()"><option value="">Home &amp; away</option><option value="home">Home team only</option><option value="away">Visitors only</option></select>
     <button class="blast-toggle" id="blast-toggle" onclick="toggleBlast()">&#127754; Baja Blasts only</button>
     <div class="results-count" id="results-count"></div>
     <button class="export-btn" onclick="exportPDF()">
@@ -392,8 +396,8 @@
   <div id="error-area"></div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>Player</th><th>Team</th><th>Distance</th><th>Exit velo</th><th>Launch angle</th><th>Date</th><th>Opp</th><th>Inn</th><th></th></tr></thead>
-      <tbody id="hr-tbody"><tr><td colspan="10" class="empty-state">Loading...</td></tr></tbody>
+      <thead><tr><th>#</th><th>Player</th><th>Team</th><th>Distance</th><th>Exit velo</th><th>Launch angle</th><th>Date</th><th>Opp</th><th>Ballpark</th><th>Inn</th><th></th></tr></thead>
+      <tbody id="hr-tbody"><tr><td colspan="11" class="empty-state">Loading...</td></tr></tbody>
     </table>
   </div>
   <div class="footer">
@@ -560,6 +564,8 @@
     const known = allHRs.filter(h => h.distance && h.distance >= 420), games = new Set(allHRs.map(h => h.game_pk)).size;
     document.getElementById('stat-total').textContent = allHRs.length;
     document.getElementById('stat-420').textContent = known.length || '\u2014';
+    const kHome = known.filter(h => h.batting_side === 'home').length, kAway = known.filter(h => h.batting_side === 'away').length;
+    document.getElementById('stat-420-sub').textContent = (kHome + kAway) ? kHome + ' by home team \u00b7 ' + kAway + ' by visitors' : '420+ ft verified';
     document.getElementById('stat-games').textContent = window.gamesCompleted ?? games;
     if (known.length > 0) { const l = known.reduce((a,b) => b.distance > a.distance ? b : a); document.getElementById('stat-longest').textContent = l.distance + ' ft'; document.getElementById('stat-longest-by').textContent = l.player; }
     else { document.getElementById('stat-longest').textContent = '\u2014'; document.getElementById('stat-longest-by').textContent = 'pending Statcast'; }
@@ -584,12 +590,14 @@
     const teamFilter = document.getElementById('team-filter').value;
     const dateFrom = document.getElementById('date-from').value, dateTo = document.getElementById('date-to').value;
     const sort = document.getElementById('sort-select').value;
+    const sideFilter = document.getElementById('side-filter').value;
     let rows = allHRs.filter(h => {
       if (search && !h.player.toLowerCase().includes(search) && !h.team.toLowerCase().includes(search)) return false;
       if (teamFilter && h.team !== teamFilter) return false;
       if (dateFrom && h.date < dateFrom) return false;
       if (dateTo && h.date > dateTo) return false;
       if (bajaOnly && !(h.distance && h.distance >= 420)) return false;
+      if (sideFilter && h.batting_side !== sideFilter) return false;
       return true;
     });
     rows.sort((a,b) => {
@@ -603,7 +611,7 @@
     });
     document.getElementById('results-count').textContent = rows.length === allHRs.length ? rows.length + ' home runs' : rows.length + ' of ' + allHRs.length;
     const tbody = document.getElementById('hr-tbody');
-    if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No results match your filters.</td></tr>'; return; }
+    if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No results match your filters.</td></tr>'; return; }
     tbody.innerHTML = rows.map((h,i) => {
       const dist = h.distance;
       let distCell = dist && dist>=420 ? '<span class="dist-badge">'+dist+' ft</span>' : dist ? '<span style="color:var(--text3);font-size:12px;">'+dist+' ft</span>' : '<span class="dist-badge pending">pending</span>';
@@ -612,7 +620,7 @@
       let dateStr = '\u2014'; if (h.date) { try { dateStr = new Date(h.date+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}); } catch(e) { dateStr=h.date; } }
       const tweetText = encodeURIComponent('\uD83C\uDF0A Baja Blast! '+h.player+' ('+h.team+') just hit '+(dist?dist+' ft':'a shot')+' off '+h.opponent+' on '+dateStr+'! #BajaBlast #MLB2026');
       const videoBtn = h.play_id ? '<a href="https://baseballsavant.mlb.com/sporty-videos?playId='+h.play_id+'" target="_blank" class="video-btn"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><polygon points="4,2 14,8 4,14"/></svg> Video</a>' : '';
-      return '<tr><td class="rank">'+(i+1)+'</td><td><span class="player-name">'+h.player+'</span>'+(h.is_walkoff?'<span class="walkoff-badge">Walk-off</span>':'')+'</td><td><span class="team-chip">'+h.team+'</span></td><td>'+distCell+'</td><td style="color:var(--text2);">'+ev+'</td><td style="color:var(--text2);">'+la+'</td><td style="color:var(--text2);">'+dateStr+'</td><td><span class="team-chip">'+(h.opponent||'\u2014')+'</span></td><td style="color:var(--text3);font-size:12px;">'+(h.inning||'\u2014')+'</td><td style="white-space:nowrap;">'+videoBtn+'<a href="https://twitter.com/intent/tweet?text='+tweetText+'" target="_blank" class="tweet-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Tweet</a></td></tr>';
+      return '<tr><td class="rank">'+(i+1)+'</td><td><span class="player-name">'+h.player+'</span>'+(h.is_walkoff?'<span class="walkoff-badge">Walk-off</span>':'')+'</td><td><span class="team-chip">'+h.team+'</span>'+(h.batting_side?'<span class="side-tag '+h.batting_side+'">'+(h.batting_side==='home'?'Home':'Away')+'</span>':'')+'</td><td>'+distCell+'</td><td style="color:var(--text2);">'+ev+'</td><td style="color:var(--text2);">'+la+'</td><td style="color:var(--text2);">'+dateStr+'</td><td><span class="team-chip">'+(h.opponent||'\u2014')+'</span></td><td style="color:var(--text2);font-size:12px;white-space:nowrap;">'+(h.venue||'\u2014')+'</td><td style="color:var(--text3);font-size:12px;">'+(h.inning_half?(h.inning_half==='top'?'T':'B'):'')+(h.inning||'\u2014')+'</td><td style="white-space:nowrap;">'+videoBtn+'<a href="https://twitter.com/intent/tweet?text='+tweetText+'" target="_blank" class="tweet-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Tweet</a></td></tr>';
     }).join('');
   }
 
@@ -714,12 +722,12 @@
 
   const BALLPARKS=[
     {name:"Yankee Stadium",team:"NYY",lat:40.8296,lng:-73.9262},{name:"Fenway Park",team:"BOS",lat:42.3467,lng:-71.0972},
-    {name:"Camden Yards",team:"BAL",lat:39.2838,lng:-76.6218},{name:"Rogers Centre",team:"TOR",lat:43.6414,lng:-79.3894},
-    {name:"Tropicana Field",team:"TB",lat:27.7682,lng:-82.6534},{name:"Guaranteed Rate Field",team:"CWS",lat:41.8299,lng:-87.6338},
+    {name:"Oriole Park at Camden Yards",team:"BAL",lat:39.2838,lng:-76.6218},{name:"Rogers Centre",team:"TOR",lat:43.6414,lng:-79.3894},
+    {name:"Tropicana Field",team:"TB",lat:27.7682,lng:-82.6534},{name:"Rate Field",team:"CWS",lat:41.8299,lng:-87.6338},
     {name:"Progressive Field",team:"CLE",lat:41.4962,lng:-81.6852},{name:"Comerica Park",team:"DET",lat:42.3390,lng:-83.0485},
     {name:"Kauffman Stadium",team:"KC",lat:39.0517,lng:-94.4803},{name:"Target Field",team:"MIN",lat:44.9817,lng:-93.2781},
-    {name:"Globe Life Field",team:"TEX",lat:32.7473,lng:-97.0832},{name:"Minute Maid Park",team:"HOU",lat:29.7572,lng:-95.3555},
-    {name:"Angel Stadium",team:"LAA",lat:33.8003,lng:-117.8827},{name:"Oakland Coliseum",team:"OAK",lat:37.7516,lng:-122.2005},
+    {name:"Globe Life Field",team:"TEX",lat:32.7473,lng:-97.0832},{name:"Daikin Park",team:"HOU",lat:29.7572,lng:-95.3555},
+    {name:"Angel Stadium",team:"LAA",lat:33.8003,lng:-117.8827},{name:"Sutter Health Park",team:"OAK",lat:38.5804,lng:-121.5135},
     {name:"T-Mobile Park",team:"SEA",lat:47.5914,lng:-122.3325},{name:"Citizens Bank Park",team:"PHI",lat:39.9061,lng:-75.1665},
     {name:"Citi Field",team:"NYM",lat:40.7571,lng:-73.8458},{name:"Nationals Park",team:"WSH",lat:38.8731,lng:-77.0074},
     {name:"Truist Park",team:"ATL",lat:33.8908,lng:-84.4678},{name:"loanDepot park",team:"MIA",lat:25.7781,lng:-80.2197},
@@ -736,25 +744,37 @@
     const pending=document.getElementById('map-pending'),svg=document.getElementById('map-svg');
     if(bajaBlasts.length===0){pending.style.display='block';svg.style.display='none';return;}
     pending.style.display='none';svg.style.display='block';
-    const blastsByPark={};bajaBlasts.forEach(h=>{blastsByPark[h.team]=(blastsByPark[h.team]||0)+1;});
+    // Group by the ballpark the game was actually played in (not the batter's team)
+    const parkByTeam={};BALLPARKS.forEach(bp=>{parkByTeam[bp.team]=bp;});
+    const parks={};
+    bajaBlasts.forEach(h=>{
+      let name=h.venue,lat=h.venue_lat,lng=h.venue_lng;
+      if(!name||lat==null||lng==null){ // older data without venue: fall back to home team's park
+        const home=h.home_team||(h.inning_half==='bottom'?h.team:h.opponent),bp=parkByTeam[home];
+        if(!bp)return; name=bp.name;lat=bp.lat;lng=bp.lng;
+      }
+      if(!parks[name])parks[name]={name,lat,lng,city:h.venue_city||'',count:0,home:0,away:0};
+      const p=parks[name];p.count++;if(h.batting_side==='home')p.home++;else if(h.batting_side==='away')p.away++;
+    });
     const sf=isDark?'#0d301f':'#e4f5ee',sb=isDark?'rgba(0,220,160,0.12)':'rgba(0,160,110,0.15)',ac=isDark?'#00dca0':'#009e72',tb=isDark?'#051a14':'#ffffff',tbo=isDark?'rgba(0,220,160,0.3)':'rgba(0,160,110,0.3)';
     const d3svg=d3.select('#map-svg');d3svg.selectAll('*').remove();
     const projection=d3.geoAlbersUsa().scale(1100).translate([480,250]),path=d3.geoPath(projection);
     d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(us=>{
       d3svg.append('g').selectAll('path').data(topojson.feature(us,us.objects.states).features).join('path').attr('d',path).attr('fill',sf).attr('stroke',sb).attr('stroke-width',0.5);
       const tooltip=document.getElementById('map-tooltip'),svgEl=document.getElementById('map-svg');
-      BALLPARKS.forEach(bp=>{
-        const coords=projection([bp.lng,bp.lat]);if(!coords)return;
-        const [x,y]=coords,count=blastsByPark[bp.team]||0;
-        if(count===0){d3svg.append('circle').attr('cx',x).attr('cy',y).attr('r',3).attr('fill',sb).attr('stroke','none');return;}
-        const r=count>=6?12:count>=3?8:5;
+      const offMap=[];
+      Object.values(parks).sort((a,b)=>b.count-a.count).forEach(p=>{
+        const coords=projection([p.lng,p.lat]);
+        if(!coords){offMap.push(p);return;}
+        const [x,y]=coords,r=2.5+Math.sqrt(p.count)*1.1;
         d3svg.append('circle').attr('cx',x).attr('cy',y).attr('r',r+4).attr('fill',isDark?'rgba(0,220,160,0.12)':'rgba(0,158,114,0.12)').attr('pointer-events','none');
-        d3svg.append('circle').attr('cx',x).attr('cy',y).attr('r',r).attr('fill',ac).attr('opacity',0.9).attr('cursor','pointer')
-          .on('mouseover',()=>{tooltip.innerHTML='<strong>'+bp.name+'</strong>'+bp.team+' \u00b7 '+count+' Baja Blast'+(count!==1?'s':'');tooltip.style.opacity='1';tooltip.style.background=tb;tooltip.style.borderColor=tbo;})
+        d3svg.append('circle').attr('cx',x).attr('cy',y).attr('r',r).attr('fill',ac).attr('opacity',0.85).attr('stroke',tb).attr('stroke-width',0.8).attr('cursor','pointer')
+          .on('mouseover',()=>{tooltip.innerHTML='<strong>'+p.name+'</strong>'+p.count+' Baja Blast'+(p.count!==1?'s':'')+(p.home+p.away?' \u00b7 '+p.home+' home / '+p.away+' visitors':'');tooltip.style.opacity='1';tooltip.style.background=tb;tooltip.style.borderColor=tbo;})
           .on('mousemove',(event)=>{const rect=svgEl.getBoundingClientRect();tooltip.style.left=(event.clientX-rect.left+12)+'px';tooltip.style.top=(event.clientY-rect.top-36)+'px';})
           .on('mouseout',()=>{tooltip.style.opacity='0';});
-        if(count>=3)d3svg.append('text').attr('x',x).attr('y',y+4).attr('text-anchor','middle').attr('fill',isDark?'#051a14':'#ffffff').attr('font-size','9px').attr('font-weight','700').attr('pointer-events','none').text(count);
+        if(p.count>=10)d3svg.append('text').attr('x',x).attr('y',y+3).attr('text-anchor','middle').attr('fill',isDark?'#051a14':'#ffffff').attr('font-size','9px').attr('font-weight','700').attr('pointer-events','none').text(p.count);
       });
+      document.getElementById('map-footnote').textContent=offMap.length?'Not on map: '+offMap.map(p=>p.name+(p.city?' ('+p.city+')':'')+' \u2014 '+p.count).join(' \u00b7 '):'';
     });
   }
 
@@ -764,7 +784,7 @@
     const teal=[0,180,130],dark=[5,26,20],mid=[30,120,88],light=[212,245,234],white=[255,255,255],gray=[100,140,120];
     const search=document.getElementById('search-input').value.trim(),teamFilter=document.getElementById('team-filter').value;
     const dateFrom=document.getElementById('date-from').value,dateTo=document.getElementById('date-to').value,sort=document.getElementById('sort-select').value;
-    let rows=allHRs.filter(h=>{if(search&&!h.player.toLowerCase().includes(search.toLowerCase())&&!h.team.toLowerCase().includes(search.toLowerCase()))return false;if(teamFilter&&h.team!==teamFilter)return false;if(dateFrom&&h.date<dateFrom)return false;if(dateTo&&h.date>dateTo)return false;if(bajaOnly&&!(h.distance&&h.distance>=420))return false;return true;});
+    let rows=allHRs.filter(h=>{if(search&&!h.player.toLowerCase().includes(search.toLowerCase())&&!h.team.toLowerCase().includes(search.toLowerCase()))return false;if(teamFilter&&h.team!==teamFilter)return false;if(dateFrom&&h.date<dateFrom)return false;if(dateTo&&h.date>dateTo)return false;if(bajaOnly&&!(h.distance&&h.distance>=420))return false;const sf=document.getElementById('side-filter').value;if(sf&&h.batting_side!==sf)return false;return true;});
     rows.sort((a,b)=>{if(sort==='baja-first'){const aB=a.distance&&a.distance>=420?1:0,bB=b.distance&&b.distance>=420?1:0;if(bB!==aB)return bB-aB;return(b.distance||0)-(a.distance||0);}if(sort==='dist-desc')return(b.distance||0)-(a.distance||0);if(sort==='date-desc')return(b.date||'').localeCompare(a.date||'');if(sort==='date-asc')return(a.date||'').localeCompare(b.date||'');if(sort==='player-asc')return a.player.localeCompare(b.player);if(sort==='team-asc')return a.team.localeCompare(b.team);return 0;});
     const bajaRows=rows.filter(h=>h.distance&&h.distance>=420);
     doc.setFillColor(...dark);doc.rect(0,0,W,28,'F');doc.setFillColor(...teal);doc.rect(0,26,W,2,'F');
