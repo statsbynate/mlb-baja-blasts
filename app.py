@@ -53,6 +53,10 @@ _PERSISTENT_PATH = "/data/mlb_hr_cache.json"
 _TMP_PATH = "/tmp/mlb_hr_cache.json"
 CACHE_FILE = _PERSISTENT_PATH if os.path.isdir("/data") else _TMP_PATH
 
+FEED_FIELDS = ("liveData,plays,allPlays,result,event,eventType,rbi,about,inning,halfInning,"
+               "atBatIndex,matchup,batter,pitcher,fullName,id,playEvents,playId,hitData,"
+               "totalDistance,launchSpeed,launchAngle,isPitch")
+
 MLB_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
     "Accept": "application/json",
@@ -144,8 +148,10 @@ def fetch_final_games(season=SEASON):
 
 def fetch_homeruns_for_game(game):
     """Return list of HRs, or None if the feed couldn't be fetched (so it gets retried)."""
+    # Ask only for the fields we use: ~45 KB per game instead of ~800 KB, which
+    # keeps memory flat when several games are fetched in parallel.
     url = f"https://statsapi.mlb.com/api/v1.1/game/{game['gamePk']}/feed/live"
-    resp = requests.get(url, headers=MLB_HEADERS, timeout=20)
+    resp = requests.get(url, params={"fields": FEED_FIELDS}, headers=MLB_HEADERS, timeout=20)
     if resp.status_code != 200:
         logger.warning(f"Game {game['gamePk']} feed returned {resp.status_code}")
         return None
@@ -270,43 +276,58 @@ def _invalidate(pk):
     _savant_cache.pop(pk, None)
 
 
-def fetch_savant_search_homeruns(season=SEASON):
-    """All season HRs from Baseball Savant's Statcast Search CSV.
-    Used only to fill distances the per-game feed is missing."""
+def fetch_savant_search_homeruns(wanted, season=SEASON):
+    """Look up specific HRs in Baseball Savant's Statcast Search CSV.
+
+    The full-season CSV is large (~120 columns x 5,500+ rows), so it is streamed
+    line by line and only the rows in `wanted` are kept. Loading it whole was
+    enough to push a small Render instance out of memory.
+    wanted: set of (game_pk, batter_id, at_bat_number)
+    """
     url = ("https://baseballsavant.mlb.com/statcast_search/csv?all=true"
            f"&hfAB=home%5C.%5C.run%7C&hfGT=R%7C&hfSea={season}%7C&player_type=batter"
            "&min_pitches=0&min_results=0&min_pas=0&type=details")
-    resp = requests.get(url, headers=SAVANT_HEADERS, timeout=60)
-    resp.raise_for_status()
-    reader = csv.DictReader(io.StringIO(resp.content.decode("utf-8-sig", errors="replace")))
+    keep = ("hit_distance_sc", "launch_speed", "launch_angle", "hc_x", "hc_y")
     out = {}
-    for row in reader:
+    with requests.get(url, headers=SAVANT_HEADERS, timeout=60, stream=True) as resp:
+        resp.raise_for_status()
+        lines = (ln.decode("utf-8-sig", errors="replace") for ln in resp.iter_lines() if ln)
+        reader = csv.reader(lines)
+        header = next(reader, [])
+        idx = {name: i for i, name in enumerate(header)}
         try:
-            key = (str(row["game_pk"]), int(row["batter"]), int(row["at_bat_number"]))
-        except (KeyError, ValueError, TypeError):
-            continue
-        out[key] = row
-    logger.info(f"Statcast Search: {len(out)} season HRs")
+            i_pk, i_bat, i_ab = idx["game_pk"], idx["batter"], idx["at_bat_number"]
+        except KeyError:
+            logger.warning("Statcast Search CSV missing expected columns")
+            return out
+        for row in reader:
+            try:
+                key = (str(row[i_pk]), int(row[i_bat]), int(row[i_ab]))
+            except (IndexError, ValueError):
+                continue
+            if key in wanted:
+                out[key] = {k: row[idx[k]] for k in keep if k in idx and idx[k] < len(row)}
+    logger.info(f"Statcast Search: matched {len(out)} of {len(wanted)} pending HRs")
     return out
 
 
 def _fill_from_savant_search(all_hrs, season=SEASON):
-    """For HRs still missing a distance, look them up in Statcast Search (refreshed every 6h)."""
+    """For HRs still missing a distance, look them up in Statcast Search (at most every 6h)."""
     global _last_savant_search, _savant_search_cache
-    pending = [h for h in all_hrs if not h.get("distance")]
+    pending = [h for h in all_hrs if not h.get("distance")
+               and h.get("batter_id") is not None and h.get("at_bat_index") is not None]
     if not pending:
         return
-    if time.time() - _last_savant_search > SAVANT_SEARCH_INTERVAL:
-        try:
-            _savant_search_cache = fetch_savant_search_homeruns(season)
+    wanted = {(str(h["game_pk"]), int(h["batter_id"]), int(h["at_bat_index"]) + 1) for h in pending}
+    if time.time() - _last_savant_search > SAVANT_SEARCH_INTERVAL or not wanted <= set(_savant_search_cache):
+        if time.time() - _last_savant_search > 1800:  # never hit Savant more than every 30 min
+            try:
+                _savant_search_cache = fetch_savant_search_homeruns(wanted, season)
+            except Exception as e:
+                logger.warning(f"Statcast Search fetch failed: {e}")
             _last_savant_search = time.time()
-        except Exception as e:
-            logger.warning(f"Statcast Search fetch failed: {e}")
-            _last_savant_search = time.time() - SAVANT_SEARCH_INTERVAL + 1800  # retry in 30 min
     filled = 0
     for hr in pending:
-        if hr.get("batter_id") is None or hr.get("at_bat_index") is None:
-            continue
         row = _savant_search_cache.get((str(hr["game_pk"]), int(hr["batter_id"]), int(hr["at_bat_index"]) + 1))
         if not row or not row.get("hit_distance_sc"):
             continue
@@ -478,7 +499,8 @@ def fetch_all_homeruns(season=SEASON):
         else:
             hr["source"] = "MLB Stats API (distance pending)"
 
-    _fill_from_savant_search(all_hrs, season)
+    if missing == 0:  # only after the season is fully loaded, never mid-backfill
+        _fill_from_savant_search(all_hrs, season)
     return _build_result(all_hrs), len(games), missing == 0
 
 
@@ -683,6 +705,7 @@ def debug():
 @app.route("/api/status")
 def status():
     """Fast status check - no external calls."""
+    check_stuck_fetch()
     cached = load_file_cache()
     return jsonify({
         "cache_exists": cached is not None,
